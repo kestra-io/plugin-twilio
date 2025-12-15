@@ -18,7 +18,7 @@ import static org.hamcrest.Matchers.*;
 
 @KestraTest
 @WireMockTest(httpPort = 28181)
-class RunTest {
+class SyncTest {
     @Inject
     private RunContextFactory runContextFactory;
 
@@ -65,7 +65,7 @@ class RunTest {
 
         RunContext runContext = runContextFactory.of(Map.of());
 
-        Run task = Run.builder()
+        Sync task = Sync.builder()
             .token(Property.ofValue("test-token"))
             .sourceId(Property.ofValue("source"))
             .modelId(Property.ofValue("model"))
@@ -75,7 +75,7 @@ class RunTest {
             .uri(Property.ofValue(wireMockRuntimeInfo.getHttpBaseUrl()))
             .build();
 
-        Run.Output output = task.run(runContext);
+        Sync.Output output = task.run(runContext);
 
         assertThat(output.getSyncId(), is("sync-123"));
         assertThat(output.getStatus(), notNullValue());
@@ -98,7 +98,7 @@ class RunTest {
 
         RunContext runContext = runContextFactory.of(Map.of());
 
-        Run task = Run.builder()
+        Sync task = Sync.builder()
             .token(Property.ofValue("test-token"))
             .sourceId(Property.ofValue("source"))
             .modelId(Property.ofValue("model"))
@@ -107,7 +107,7 @@ class RunTest {
             .uri(Property.ofValue(wireMockRuntimeInfo.getHttpBaseUrl()))
             .build();
 
-        Run.Output output = task.run(runContext);
+        Sync.Output output = task.run(runContext);
 
         assertThat(output.getSyncId(), is("sync-456"));
         assertThat(output.getCreated(), notNullValue());

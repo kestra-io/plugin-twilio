@@ -12,13 +12,13 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 @KestraTest
 @EnabledIfEnvironmentVariable(named = "SEGMENT_TOKEN", matches = ".+")
-class RunIT {
+class SyncIT {
     @Inject
     private RunContextFactory runContextFactory;
 
     @Test
     void shouldTriggerReverseEtlSync() throws Exception {
-        Run task = Run.builder()
+        Sync task = Sync.builder()
             .token(Property.ofValue(System.getenv("SEGMENT_TOKEN")))
             .sourceId(Property.ofValue("source-id"))
             .modelId(Property.ofValue("model-id"))
@@ -28,7 +28,7 @@ class RunIT {
 
         RunContext runContext = runContextFactory.of();
 
-        Run.Output output = task.run(runContext);
+        Sync.Output output = task.run(runContext);
 
         assertThat(output.getSyncId()).isNotNull();
     }

@@ -33,7 +33,7 @@ import java.util.concurrent.TimeoutException;
 
                 tasks:
                   - id: segment_reverse_etl
-                    type: io.kestra.plugin.segment.reverseETL.Run
+                    type: io.kestra.plugin.segment.reverseETL.Sync
                     token: "{{ secret('SEGMENT_TOKEN') }}"
                     sourceId: warehouse_id
                     modelId: model_id
@@ -43,7 +43,7 @@ import java.util.concurrent.TimeoutException;
         )
     }
 )
-public class Run extends AbstractSegmentConnection implements RunnableTask<Run.Output> {
+public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync.Output> {
 
     @NotNull
     @Schema(
