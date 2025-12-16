@@ -1,0 +1,8 @@
+group: io.kestra.plugin.segment.reverseetl
+name: "reverseetl"
+title: "Reverse ETL"
+description: "Tasks that trigger and monitor Segment Reverse ETL syncs."
+body: "Provide Segment API credentials and provide Reverse ETL identifiers to start syncs and retrieve their status for workflow automation."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
