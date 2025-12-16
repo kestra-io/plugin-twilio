@@ -1,4 +1,4 @@
-group: io.kestra.plugin.template
+group: io.kestra.plugin.segment
 name: "segment"
 title: "Segment"
 description: "Tasks that interact with Segment APIs."
