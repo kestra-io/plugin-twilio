@@ -1,4 +1,4 @@
-group: io.kestra.plugin.segment.reverseetl
+group: io.kestra.plugin.twilio.segment.reverseetl
 name: "reverseetl"
 title: "Reverse ETL"
 description: "Tasks that trigger and monitor Segment Reverse ETL syncs."

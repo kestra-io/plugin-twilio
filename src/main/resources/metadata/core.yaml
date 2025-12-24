@@ -1,0 +1,8 @@
+group: io.kestra.plugin.twilio.core
+name: "core"
+title: "Twilio Messaging"
+description: "Tasks that send SMS or voice notifications through Twilio."
+body: "Provide Twilio account SID/auth token plus from/to numbers and message text (or call URL) to deliver SMS or voice calls from Kestra workflows."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

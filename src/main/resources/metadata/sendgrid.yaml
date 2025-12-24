@@ -1,0 +1,8 @@
+group: io.kestra.plugin.twilio.sendgrid
+name: "sendgrid"
+title: "Sendgrid"
+description: "Tasks that send email via SendGrid."
+body: "Set the SendGrid API key, from/to addresses, subject, and content (plus optional templates and attachments) to deliver emails through SendGrid from Kestra workflows."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

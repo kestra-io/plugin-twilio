@@ -1,8 +1,8 @@
-group: io.kestra.plugin.segment
-name: "segment"
-title: "Segment"
-description: "Tasks that interact with Segment APIs."
-body: "Set Segment API credentials and provide relevant identifiers to perform Segment operations and retrieve API payloads for workflow automation."
+group: io.kestra.plugin.twilio
+name: "twilio"
+title: "Twilio"
+description: "Tasks that integrate with the Twilio ecosystem."
+body: "Configure authentication and service-specific parameters to interact with Twilio-powered communication and data services. These tasks enable workflows to send messages, manage communications, and connect with external customer engagement platforms supported by Twilio, all directly from Kestra."
 videos: []
 createdBy: "Kestra Core Team"
 managedBy: "Kestra Core Team"
