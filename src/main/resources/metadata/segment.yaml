@@ -1,0 +1,8 @@
+group: io.kestra.plugin.twilio.segment
+name: "segment"
+title: "Segment"
+description: "Tasks that interact with Segment APIs."
+body: "Set Segment API credentials and provide relevant identifiers to perform Segment operations and retrieve API payloads for workflow automation."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

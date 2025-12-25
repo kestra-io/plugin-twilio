@@ -1,10 +1,10 @@
 {
-  "name": "plugin-segment",
+  "name": "plugin-twilio",
   "build": {
     "context": ".",
     "dockerfile": "Dockerfile"
   },
-  "workspaceFolder": "/workspaces/plugin-segment",
+  "workspaceFolder": "/workspaces/plugin-twilio",
   "forwardPorts": [8080],
   "customizations": {
     "vscode": {
