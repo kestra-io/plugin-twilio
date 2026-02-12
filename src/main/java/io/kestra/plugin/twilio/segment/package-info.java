@@ -1,6 +1,9 @@
 @PluginSubGroup(
     description = "Tasks that interact with Segment APIs. Set Segment API credentials and provide relevant identifiers to perform Segment operations and retrieve API payloads for workflow automation.",
-    categories = PluginSubGroup.PluginCategory.TOOL
+    categories = {
+        PluginSubGroup.PluginCategory.BUSINESS,
+        PluginSubGroup.PluginCategory.DATA
+    }
 )
 package io.kestra.plugin.twilio.segment;
 
