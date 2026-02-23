@@ -18,9 +18,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Send a SendGrid email with the execution information.",
-    description = "The message will include a link to the execution page in the UI along with the execution ID, namespace, flow name, the start date, duration, and the final status of the execution. If failed, then the task that led to the failure is specified.\n\n" +
-    "Use this notification task only in a flow that has a [Flow trigger](https://kestra.io/docs/administrator-guide/monitoring#alerting), as shown in this example. Don't use this notification task in `errors` tasks. Instead, for `errors` tasks, use the [SendGridMailSend](https://kestra.io/plugins/plugin-twilio/tasks/sendgrid/io.kestra.plugin.twilio.sendgrid.sendgridmailsend) task."
+    title = "Email execution summary via SendGrid",
+    description = "Uses bundled HTML and text templates to email execution status, flow metadata, and a UI link through SendGrid. Intended for Flow-triggered alerts; for `errors` handlers, use SendGridMailSend instead."
 )
 @Plugin(
     examples = {
@@ -58,9 +57,23 @@ import java.util.Map;
     aliases = "io.kestra.plugin.notifications.sendgrid.SendGridMailExecution"
 )
 public class SendGridMailExecution extends SendGridMailTemplate implements ExecutionInterface {
+    @Schema(
+        title = "Execution ID",
+        description = "Defaults to the current execution ID using an expression"
+    )
     @Builder.Default
     private final Property<String> executionId = Property.ofExpression("{{ execution.id }}");
+
+    @Schema(
+        title = "Custom fields",
+        description = "Additional key-value pairs merged into the template context"
+    )
     private Property<Map<String, Object>> customFields;
+
+    @Schema(
+        title = "Custom message",
+        description = "Optional message rendered into the template alongside execution details"
+    )
     private Property<String> customMessage;
 
     @Override

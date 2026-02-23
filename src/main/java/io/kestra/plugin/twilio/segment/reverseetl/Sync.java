@@ -22,7 +22,10 @@ import java.util.concurrent.TimeoutException;
 @SuperBuilder
 @Getter
 @NoArgsConstructor
-@Schema(title = "Trigger a Segment Reverse ETL sync")
+@Schema(
+    title = "Trigger a Segment Reverse ETL sync",
+    description = "Starts a manual Reverse ETL sync in Segment and optionally waits for completion with polling. Uses the Segment Public API with bearer token authentication."
+)
 @Plugin(
     examples = {
         @Example(
@@ -70,20 +73,20 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
     @Builder.Default
     @Schema(
         title = "Wait for completion",
-        description = "Whether to wait for the Reverse ETL sync to complete before finishing the task"
+        description = "Whether to wait for the Reverse ETL sync to complete before finishing the task; defaults to false"
     )
     private Property<Boolean> wait = Property.ofValue(false);
 
     @Builder.Default
     @Schema(
         title = "Maximum wait duration",
-        description = "Maximum total time to wait for the Reverse ETL sync to complete"
+        description = "Maximum total time to wait for completion when wait=true; defaults to 1h"
     )
     private Property<Duration> maxDuration = Property.ofValue(Duration.ofHours(1));
 
     @Schema(
         title = "Polling interval",
-        description = "How often to poll Segment for sync status"
+        description = "How often to poll Segment for sync status while waiting; defaults to 5s"
     )
     @Builder.Default
     private Property<Duration> pollInterval = Property.ofValue(Duration.ofSeconds(5));
@@ -91,7 +94,7 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
     @Builder.Default
     @Schema(
         title = "Fail on sync error",
-        description = "Whether the task should fail if the Reverse ETL sync finishes with a failure status"
+        description = "Whether the task should fail if the Reverse ETL sync finishes with a failure status; defaults to false"
     )
     private Property<Boolean> errorOnFailing = Property.ofValue(false);
 
@@ -177,7 +180,8 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
         private final String syncId;
 
         @Schema(
-            title = "Create sync response"
+            title = "Created sync payload",
+            description = "Creation response returned by Segment when the sync is triggered"
         )
         private final ReverseEtlSyncResponse.ReverseETLManualSync created;
 

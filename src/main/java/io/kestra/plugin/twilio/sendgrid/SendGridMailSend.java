@@ -40,7 +40,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Send an automated SendGrid email from a workflow."
+    title = "Send workflow email through SendGrid",
+    description = "Delivers HTML or text emails with optional attachments using the SendGrid API and an API key. Supports inline images and fails the task on non-2xx responses."
 )
 @Plugin(
     examples = {
@@ -76,7 +77,8 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
     /* Server info */
 
     @Schema(
-        title = "The SendGrid API KEY"
+        title = "SendGrid API key",
+        description = "API key used to authenticate SendGrid requests; store as a secret"
     )
     @NotBlank
     @PluginProperty(dynamic = true)
@@ -84,55 +86,54 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
 
     /* Mail info */
     @Schema(
-        title = "The address of the sender of this email"
+        title = "Sender email address",
+        description = "Must comply with RFC 2822 formatting"
     )
     @PluginProperty(dynamic = true)
     @NotBlank
     private String from;
 
     @Schema(
-        title = "Email address(es) of the recipient(s)",
-        description = "Note that each email address must be compliant with the RFC2822 format."
+        title = "Recipient email addresses",
+        description = "Each address must comply with RFC 2822 format"
     )
     @NotEmpty
     @PluginProperty(dynamic = true)
     private List<String> to;
 
     @Schema(
-        title = "One or more 'Cc' (carbon copy) optional recipient(s) email address(es)",
-        description = "Note that each email address must be compliant with the RFC2822 format."
+        title = "Cc recipients",
+        description = "Optional carbon-copy recipients in RFC 2822 format"
     )
     private Property<List<String>> cc;
 
     @Schema(
-        title = "The optional subject of this email"
+        title = "Email subject",
+        description = "Optional subject line rendered from flow variables"
     )
     private Property<String> subject;
 
     @Schema(
-        title = "The optional email message body in HTML",
-        description = "Both text and HTML can be provided, either will be offered to the email client as alternative content." +
-            "Email clients that support it, will favor HTML over plain text and ignore the text body completely."
+        title = "HTML body",
+        description = "Optional HTML content. When both HTML and text are provided, email clients treat them as alternatives and typically favor HTML."
     )
     protected Property<String> htmlContent;
 
     @Schema(
-        title = "The optional email message body in plain text",
-        description = "Both text and HTML can be provided, either will be offered to the email client as alternative content." +
-            "Email clients that support it, will favor HTML over plain text and ignore the text body completely."
+        title = "Plain text body",
+        description = "Optional text content. When both HTML and text are provided, clients choose based on capability."
     )
     protected Property<String> textContent;
 
     @Schema(
-        title = "Adds an attachment to the email message",
-        description = "The attachment will be shown in the email client as separate files available for download or display." +
-            "inline if the client supports it (for example, most browsers display PDF's in a popup window)"
+        title = "File attachments",
+        description = "List of files loaded from Kestra storage and attached to the email; delivered as downloadable attachments"
     )
     private List<Attachment> attachments;
 
     @Schema(
-        title = "Adds image data to this email that can be referred to from the email HTML body",
-        description = "The provided images are assumed to be of MIME type png, jpg, or whatever the email client supports as valid image that can be embedded in HTML content."
+        title = "Inline embedded images",
+        description = "Images loaded from storage and attached with inline disposition for HTML content"
     )
     private List<Attachment> embeddedImages;
 
@@ -222,20 +223,22 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
     @Jacksonized
     public static class Attachment {
         @Schema(
-            title = "An attachment URI from Kestra internal storage"
+            title = "Attachment URI",
+            description = "URI in Kestra internal storage that supplies the file content"
         )
         @NotNull
         private Property<String> uri;
 
         @Schema(
-            title = "The name of the attachment (eg. 'filename.txt')"
+            title = "Attachment filename",
+            description = "Filename presented to recipients, e.g., 'report.pdf'"
         )
         @NotNull
         private Property<String> name;
 
         @Schema(
-            title = "One or more 'Cc' (carbon copy) optional recipient email address(es). Use semicolon as a delimiter to provide several addresses.",
-            description = "Note that each email address must be compliant with the RFC2822 format."
+            title = "Attachment content type",
+            description = "MIME type for the attachment; defaults to application/octet-stream"
         )
         @NotNull
         @Builder.Default

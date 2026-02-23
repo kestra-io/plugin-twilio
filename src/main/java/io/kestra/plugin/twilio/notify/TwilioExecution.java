@@ -19,9 +19,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Send a Twilio message with the execution information.",
-    description = "The message will include a link to the execution page in the UI along with the execution ID, namespace, flow name, the start date, duration, and the final status of the execution. If failed, then task that led to the failure is specified.\n\n" +
-        "Use this notification task only in a flow that has a [Flow trigger](https://kestra.io/docs/administrator-guide/monitoring#alerting). Don't use this notification task in `errors` tasks. Instead, for `errors` tasks, use the [TwilioAlert](https://kestra.io/plugins/plugin-twilio/tasks/notify/io.kestra.plugin.twilio.notify.twilioalert) task."
+    title = "Send execution summary via Twilio",
+    description = "Uses the bundled template to send execution status, flow metadata, and a UI link through Twilio Notify. Intended for Flow-triggered alerts; for `errors` handlers, use TwilioAlert instead."
 )
 @Plugin(
     examples = {
@@ -58,9 +57,23 @@ import java.util.Map;
     aliases = "io.kestra.plugin.notifications.twilio.TwilioExecution"
 )
 public class TwilioExecution extends TwilioTemplate implements ExecutionInterface {
+    @Schema(
+        title = "Execution ID",
+        description = "Defaults to the current execution ID using an expression"
+    )
     @Builder.Default
     private final Property<String> executionId = Property.ofExpression("{{ execution.id }}");
+
+    @Schema(
+        title = "Custom fields",
+        description = "Additional key-value pairs merged into the rendered template context"
+    )
     private Property<Map<String, Object>> customFields;
+
+    @Schema(
+        title = "Custom message",
+        description = "Optional message rendered into the template alongside execution details"
+    )
     private Property<String> customMessage;
 
     @Override
