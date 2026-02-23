@@ -31,22 +31,26 @@ public abstract class TwilioTemplate extends TwilioAlert {
     protected Property<String> templateUri;
 
     @Schema(
-        title = "Map of variables to use for the message template"
+        title = "Template variables",
+        description = "Key-value map rendered before applying the message template"
     )
     protected Property<Map<String, Object>> templateRenderMap;
 
     @Schema(
-        title = "Alert message body"
+        title = "Notification body override",
+        description = "Optional string merged into the payload as `Body`; rendered with flow variables"
     )
     protected Property<String> body;
 
     @Schema(
-        title = "Identity which associated with devices"
+        title = "Recipient identity",
+        description = "Notify identity used to target specific devices when provided"
     )
     protected Property<String> identity;
 
     @Schema(
-        title = "Tag associated with users"
+        title = "Recipient tag",
+        description = "Notify tag used to target user groups"
     )
     protected Property<String> tag;
 

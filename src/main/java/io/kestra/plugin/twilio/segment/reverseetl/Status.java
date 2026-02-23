@@ -22,7 +22,10 @@ import java.io.IOException;
 @SuperBuilder
 @Getter
 @NoArgsConstructor
-@Schema(title = "Get Segment Reverse ETL sync status")
+@Schema(
+    title = "Fetch Segment Reverse ETL sync status",
+    description = "Retrieves the latest status for a Reverse ETL sync within a model using the Segment Public API."
+)
 @Plugin(
     examples = {
         @Example(
@@ -43,9 +46,17 @@ import java.io.IOException;
     aliases = "io.kestra.plugin.segment.reverseetl.Status"
 )
 public class Status extends AbstractSegmentConnection implements RunnableTask<Status.Output> {
+    @Schema(
+        title = "Reverse ETL model ID",
+        description = "Segment model identifier that owns the sync"
+    )
     @NotNull
     private Property<String> modelId;
 
+    @Schema(
+        title = "Reverse ETL sync ID",
+        description = "Sync identifier returned by the trigger operation"
+    )
     @NotNull
     private Property<String> syncId;
 
@@ -70,7 +81,8 @@ public class Status extends AbstractSegmentConnection implements RunnableTask<St
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Sync status response"
+            title = "Sync status response",
+            description = "Full status payload returned by Segment"
         )
         private final ReverseEtlSyncStatus status;
     }

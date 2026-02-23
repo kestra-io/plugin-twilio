@@ -29,8 +29,8 @@ import java.util.Base64;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Send a Twilio message using a notification API.",
-    description = "Add this task to a list of `errors` tasks to implement custom flow-level failure notifications. Check the <a href=\"https://www.twilio.com/docs/notify/send-notifications#sending-notifications\">Twilio documentation</a> for more details.."
+    title = "Send a Twilio Notify message",
+    description = "Post a payload to the Twilio Notify API using the provided service URL with Account SID/Auth Token basic auth. Use in `errors` handlers for flow-level alerts; for Flow-triggered execution summaries, prefer TwilioExecution. See the <a href=\"https://www.twilio.com/docs/notify/send-notifications#sending-notifications\">Twilio documentation</a> for payload details."
 )
 @Plugin(
     examples = {
@@ -85,26 +85,30 @@ import java.util.Base64;
 public class TwilioAlert extends AbstractTwilioConnection {
 
     @Schema(
-        title = "Twilio notification URL"
+        title = "Twilio Notify service URL",
+        description = "Format: https://notify.twilio.com/v1/Services/ISXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Notifications"
     )
     @PluginProperty(dynamic = true)
     @NotBlank
     protected String url;
 
     @Schema(
-        title = "Twilio message payload"
+        title = "Notify payload body",
+        description = "Raw JSON payload sent to Twilio; overrides templated fields when provided"
     )
     protected Property<String> payload;
 
     @Schema(
-        title = "Twilio account SID"
+        title = "Twilio Account SID",
+        description = "Used with `authToken` for HTTP basic authentication"
     )
     @NotBlank
     @PluginProperty(dynamic = true)
     protected String accountSID;
 
     @Schema(
-        title = "Twilio authentication token"
+        title = "Twilio Auth Token",
+        description = "Secret token paired with the Account SID; store as a secret"
     )
     @NotBlank
     @PluginProperty(dynamic = true)

@@ -28,11 +28,17 @@ public abstract class AbstractSegmentConnection extends Task {
 
     protected static final String BASE_URL = "https://api.segmentapis.com";
 
-    @Schema(title = "Segment API token")
+    @Schema(
+        title = "Segment API token",
+        description = "Bearer token for Segment Public API calls; must include Reverse ETL scopes for these tasks"
+    )
     @NotNull
     protected Property<String> token;
 
-    @Schema(title = "Segment API URL")
+    @Schema(
+        title = "Segment API URL",
+        description = "Base URL for Segment API requests; defaults to https://api.segmentapis.com"
+    )
     @Builder.Default
     protected Property<String> uri = Property.ofValue(BASE_URL);
 

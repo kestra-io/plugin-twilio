@@ -28,7 +28,7 @@ import java.util.Map;
 public abstract class AbstractTwilioConnection extends Task implements RunnableTask<VoidOutput> {
     @Schema(
         title = "Options",
-        description = "The options to set to customize the HTTP client"
+        description = "Optional HTTP client overrides for timeouts, charset, headers, and max content length"
     )
     @PluginProperty(dynamic = true)
     protected RequestOptions options;
@@ -68,26 +68,44 @@ public abstract class AbstractTwilioConnection extends Task implements RunnableT
     @Getter
     @Builder
     public static class RequestOptions {
-        @Schema(title = "The time allowed to establish a connection to the server before failing.")
+        @Schema(
+            title = "Connect timeout",
+            description = "Time allowed to establish the HTTP connection before failing"
+        )
         private final Property<Duration> connectTimeout;
 
-        @Schema(title = "The maximum time allowed for reading data from the server before failing.")
+        @Schema(
+            title = "Read timeout",
+            description = "Maximum time to read data before failing; defaults to 10s"
+        )
         @Builder.Default
         private final Property<Duration> readTimeout = Property.ofValue(Duration.ofSeconds(10));
 
-        @Schema(title = "The time allowed for a read connection to remain idle before closing it.")
+        @Schema(
+            title = "Read idle timeout",
+            description = "How long a read connection may stay idle before closing; defaults to 5m"
+        )
         @Builder.Default
         private final Property<Duration> readIdleTimeout = Property.ofValue(Duration.of(5, ChronoUnit.MINUTES));
 
-        @Schema(title = "The time an idle connection can remain in the client's connection pool before being closed.")
+        @Schema(
+            title = "Connection pool idle timeout",
+            description = "Time an idle pooled connection stays open before closing; defaults to 0s (no TTL)"
+        )
         @Builder.Default
         private final Property<Duration> connectionPoolIdleTimeout = Property.ofValue(Duration.ofSeconds(0));
 
-        @Schema(title = "The maximum content length of the response.")
+        @Schema(
+            title = "Max response size",
+            description = "Maximum response content length in bytes; defaults to 10MB"
+        )
         @Builder.Default
         private final Property<Integer> maxContentLength = Property.ofValue(1024 * 1024 * 10);
 
-        @Schema(title = "The default charset for the request.")
+        @Schema(
+            title = "Default request charset",
+            description = "Charset applied to requests when not specified; defaults to UTF-8"
+        )
         @Builder.Default
         private final Property<Charset> defaultCharset = Property.ofValue(StandardCharsets.UTF_8);
 
