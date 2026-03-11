@@ -1,5 +1,9 @@
 package io.kestra.plugin.twilio.notify;
 
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 import io.kestra.core.http.HttpRequest;
 import io.kestra.core.http.HttpResponse;
 import io.kestra.core.http.client.HttpClient;
@@ -11,6 +15,7 @@ import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.twilio.AbstractTwilioConnection;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.EqualsAndHashCode;
@@ -18,10 +23,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
 @SuperBuilder
 @ToString
@@ -130,9 +131,11 @@ public class TwilioAlert extends AbstractTwilioConnection {
                 .addHeader("Authorization", "Basic " + authHeader)
                 .uri(URI.create(url))
                 .method("POST")
-                .body(HttpRequest.UrlEncodedRequestBody.builder()
-                    .content(JacksonMapper.toMap(payload))
-                    .build());
+                .body(
+                    HttpRequest.UrlEncodedRequestBody.builder()
+                        .content(JacksonMapper.toMap(payload))
+                        .build()
+                );
 
             HttpRequest request = requestBuilder.build();
 

@@ -1,5 +1,14 @@
 package io.kestra.plugin.twilio.sendgrid;
 
+import java.io.InputStream;
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.apache.http.entity.ContentType;
+import org.slf4j.Logger;
+
 import com.sendgrid.Method;
 import com.sendgrid.Request;
 import com.sendgrid.Response;
@@ -9,6 +18,7 @@ import com.sendgrid.helpers.mail.objects.Attachments;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
 import com.sendgrid.helpers.mail.objects.Personalization;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -16,6 +26,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -23,14 +34,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.jackson.Jacksonized;
-import org.apache.http.entity.ContentType;
-import org.slf4j.Logger;
-
-import java.io.InputStream;
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -198,8 +201,8 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
         Map<String, String> headers = api.getHeaders();
         int statusCode = api.getStatusCode();
 
-        if (statusCode/100 != 2) {
-          throw new RuntimeException("SendGrid API failed with status code: " + statusCode + " and body: " + body);
+        if (statusCode / 100 != 2) {
+            throw new RuntimeException("SendGrid API failed with status code: " + statusCode + " and body: " + body);
         }
 
         return Output.builder().body(body).headers(headers).statusCode(statusCode).build();
@@ -208,7 +211,8 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
     private List<Attachments> attachmentResources(List<Attachment> list, RunContext runContext) throws Exception {
         return list
             .stream()
-            .map(throwFunction(attachment -> {
+            .map(throwFunction(attachment ->
+            {
                 InputStream inputStream = runContext.storage()
                     .getFile(URI.create(runContext.render(attachment.getUri()).as(String.class).get()));
 

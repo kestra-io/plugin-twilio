@@ -1,21 +1,5 @@
 package io.kestra.plugin.twilio.sendgrid;
 
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Files;
-import io.kestra.core.junit.annotations.KestraTest;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
-import io.kestra.core.tenant.TenantService;
-import jakarta.inject.Inject;
-import org.apache.commons.io.IOUtils;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.URI;
@@ -25,6 +9,24 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import org.apache.commons.io.IOUtils;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
+
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
+
+import jakarta.inject.Inject;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -47,16 +49,24 @@ public class SendGridMailSendTest {
     public static void setup() throws Exception {
 
         template = Files.asCharSource(
-            new File(Objects.requireNonNull(SendGridMailExecution.class.getClassLoader()
-                .getResource("sendgrid-mail-template.hbs.peb"))
-                .toURI()),
+            new File(
+                Objects.requireNonNull(
+                    SendGridMailExecution.class.getClassLoader()
+                        .getResource("sendgrid-mail-template.hbs.peb")
+                )
+                    .toURI()
+            ),
             StandardCharsets.UTF_8
         ).read();
 
         textTemplate = Files.asCharSource(
-            new File(Objects.requireNonNull(SendGridMailExecution.class.getClassLoader()
-                .getResource("sendgrid-text-template.hbs.peb"))
-                .toURI()),
+            new File(
+                Objects.requireNonNull(
+                    SendGridMailExecution.class.getClassLoader()
+                        .getResource("sendgrid-text-template.hbs.peb")
+                )
+                    .toURI()
+            ),
             StandardCharsets.UTF_8
         ).read();
     }
@@ -65,26 +75,28 @@ public class SendGridMailSendTest {
     private RunContextFactory runContextFactory;
 
     private RunContext getRunContext() {
-        return runContextFactory.of(Map.of(
-            "firstFailed", false,
-            "execution", ImmutableMap.of(
-                "id", "#aBcDeFgH",
-                "flowId", "sendgrid",
-                "namespace", "org.test",
-                "state", ImmutableMap.of(
-                    "current", "SUCCESS"
-                )
-            ),
-            "duration", Duration.ofMillis(123456),
-            "flow", ImmutableMap.of(
-                "id", "sendgrid"
-            ),
-            "link", "http://todo.com",
-            "customFields", ImmutableMap.of(
-                "Env", "dev"
-            ),
-            "customMessage", "myCustomMessage"
-        ));
+        return runContextFactory.of(
+            Map.of(
+                "firstFailed", false,
+                "execution", ImmutableMap.of(
+                    "id", "#aBcDeFgH",
+                    "flowId", "sendgrid",
+                    "namespace", "org.test",
+                    "state", ImmutableMap.of(
+                        "current", "SUCCESS"
+                    )
+                ),
+                "duration", Duration.ofMillis(123456),
+                "flow", ImmutableMap.of(
+                    "id", "sendgrid"
+                ),
+                "link", "http://todo.com",
+                "customFields", ImmutableMap.of(
+                    "Env", "dev"
+                ),
+                "customMessage", "myCustomMessage"
+            )
+        );
     }
 
     @Test
@@ -107,11 +119,14 @@ public class SendGridMailSendTest {
             .subject(Property.ofValue(SUBJECT))
             .htmlContent(Property.ofValue(template))
             .textContent(Property.ofValue(textTemplate))
-            .attachments(List.of(SendGridMailSend.Attachment.builder()
-                .name(Property.ofValue("application.yml"))
-                .uri(Property.ofValue(put.toString()))
-                .contentType(Property.ofValue("text/yaml"))
-                .build())
+            .attachments(
+                List.of(
+                    SendGridMailSend.Attachment.builder()
+                        .name(Property.ofValue("application.yml"))
+                        .uri(Property.ofValue(put.toString()))
+                        .contentType(Property.ofValue("text/yaml"))
+                        .build()
+                )
             )
             .build();
 

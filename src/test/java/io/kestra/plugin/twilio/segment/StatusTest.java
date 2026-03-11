@@ -1,17 +1,20 @@
 package io.kestra.plugin.twilio.segment;
 
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.twilio.segment.reverseetl.Status;
 import io.kestra.plugin.twilio.segment.reverseetl.models.ReverseEtlSyncStatus;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 
-import java.util.Map;
+import jakarta.inject.Inject;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -26,9 +29,13 @@ class StatusTest {
 
     @Test
     void run(WireMockRuntimeInfo wireMockRuntimeInfo) throws Exception {
-        stubFor(get(urlEqualTo(
-            "/reverse-etl-models/model-123/syncs/sync-456"
-        )).willReturn(okJson(STATUS_RESPONSE)));
+        stubFor(
+            get(
+                urlEqualTo(
+                    "/reverse-etl-models/model-123/syncs/sync-456"
+                )
+            ).willReturn(okJson(STATUS_RESPONSE))
+        );
 
         RunContext runContext = runContextFactory.of(Map.of());
 

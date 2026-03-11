@@ -1,9 +1,10 @@
 package io.kestra.plugin.twilio.segment.reverseetl.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.*;
-
 import java.time.Instant;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import lombok.*;
 
 @Getter
 @NoArgsConstructor

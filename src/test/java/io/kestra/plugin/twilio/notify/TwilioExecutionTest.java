@@ -1,19 +1,21 @@
 package io.kestra.plugin.twilio.notify;
 
-import io.kestra.core.junit.annotations.KestraTest;
-import io.kestra.core.repositories.LocalFlowRepositoryLoader;
-import io.kestra.core.runners.TestRunner;
-import io.kestra.plugin.twilio.AbstractTwilioTest;
-import io.kestra.plugin.twilio.FakeWebhookController;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.repositories.LocalFlowRepositoryLoader;
+import io.kestra.core.runners.TestRunner;
+import io.kestra.plugin.twilio.AbstractTwilioTest;
+import io.kestra.plugin.twilio.FakeWebhookController;
+
+import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -41,7 +43,7 @@ public class TwilioExecutionTest extends AbstractTwilioTest {
             "twilio"
         );
 
-        String receivedData = waitForWebhookData(() -> FakeWebhookController.data,5000);
+        String receivedData = waitForWebhookData(() -> FakeWebhookController.data, 5000);
 
         String decodedData = URLDecoder.decode(receivedData, StandardCharsets.UTF_8);
 

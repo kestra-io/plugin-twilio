@@ -1,16 +1,19 @@
 package io.kestra.plugin.twilio.segment;
 
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.twilio.segment.reverseetl.Sync;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 
-import java.util.Map;
+import jakarta.inject.Inject;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
@@ -25,44 +28,50 @@ class SyncTest {
 
     @Test
     void run(WireMockRuntimeInfo wireMockRuntimeInfo) throws Exception {
-        stubFor(post(urlPathEqualTo("/reverse-etl-syncs"))
-            .willReturn(okJson("""
-                {
-                  "data": {
-                    "reverseETLManualSync": {
-                      "syncId": "sync-123",
-                      "startedAt": "2025-01-01T00:00:00Z"
-                    }
-                  }
-                }
-            """)));
+        stubFor(
+            post(urlPathEqualTo("/reverse-etl-syncs"))
+                .willReturn(okJson("""
+                        {
+                          "data": {
+                            "reverseETLManualSync": {
+                              "syncId": "sync-123",
+                              "startedAt": "2025-01-01T00:00:00Z"
+                            }
+                          }
+                        }
+                    """))
+        );
 
-        stubFor(get(urlPathEqualTo("/reverse-etl-models/model/syncs/sync-123"))
-            .inScenario("poll")
-            .whenScenarioStateIs(STARTED)
-            .willReturn(okJson("""
-                {
-                  "data": {
-                    "reverseETLSyncStatus": {
-                      "syncStatus": "IN_PROGRESS"
-                    }
-                  }
-                }
-            """))
-            .willSetStateTo("done"));
+        stubFor(
+            get(urlPathEqualTo("/reverse-etl-models/model/syncs/sync-123"))
+                .inScenario("poll")
+                .whenScenarioStateIs(STARTED)
+                .willReturn(okJson("""
+                        {
+                          "data": {
+                            "reverseETLSyncStatus": {
+                              "syncStatus": "IN_PROGRESS"
+                            }
+                          }
+                        }
+                    """))
+                .willSetStateTo("done")
+        );
 
-        stubFor(get(urlPathEqualTo("/reverse-etl-models/model/syncs/sync-123"))
-            .inScenario("poll")
-            .whenScenarioStateIs("done")
-            .willReturn(okJson("""
-                {
-                  "data": {
-                    "reverseETLSyncStatus": {
-                      "syncStatus": "SUCCESS"
-                    }
-                  }
-                }
-            """)));
+        stubFor(
+            get(urlPathEqualTo("/reverse-etl-models/model/syncs/sync-123"))
+                .inScenario("poll")
+                .whenScenarioStateIs("done")
+                .willReturn(okJson("""
+                        {
+                          "data": {
+                            "reverseETLSyncStatus": {
+                              "syncStatus": "SUCCESS"
+                            }
+                          }
+                        }
+                    """))
+        );
 
         RunContext runContext = runContextFactory.of(Map.of());
 
@@ -85,17 +94,19 @@ class SyncTest {
 
     @Test
     void runWithoutWait(WireMockRuntimeInfo wireMockRuntimeInfo) throws Exception {
-        stubFor(post(urlPathEqualTo("/reverse-etl-syncs"))
-            .willReturn(okJson("""
-            {
-              "data": {
-                "reverseETLManualSync": {
-                  "syncId": "sync-456",
-                  "startedAt": "2025-01-01T00:00:00Z"
-                }
-              }
-            }
-        """)));
+        stubFor(
+            post(urlPathEqualTo("/reverse-etl-syncs"))
+                .willReturn(okJson("""
+                        {
+                          "data": {
+                            "reverseETLManualSync": {
+                              "syncId": "sync-456",
+                              "startedAt": "2025-01-01T00:00:00Z"
+                            }
+                          }
+                        }
+                    """))
+        );
 
         RunContext runContext = runContextFactory.of(Map.of());
 

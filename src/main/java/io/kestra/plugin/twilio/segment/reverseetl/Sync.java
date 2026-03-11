@@ -1,5 +1,8 @@
 package io.kestra.plugin.twilio.segment.reverseetl;
 
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.*;
 import io.kestra.core.models.property.Property;
@@ -11,13 +14,11 @@ import io.kestra.plugin.twilio.segment.reverseetl.models.ReverseEtlSyncRequest;
 import io.kestra.plugin.twilio.segment.reverseetl.models.ReverseEtlSyncResponse;
 import io.kestra.plugin.twilio.segment.reverseetl.models.ReverseEtlSyncStatus;
 import io.kestra.plugin.twilio.segment.reverseetl.models.ReverseEtlSyncStatusResponse;
+
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-
-import jakarta.validation.constraints.NotNull;
-import java.time.Duration;
-import java.util.concurrent.TimeoutException;
 
 @SuperBuilder
 @Getter
@@ -136,7 +137,8 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
 
     private ReverseEtlSyncStatus waitForCompletion(RunContext runContext, String syncId) throws IllegalVariableEvaluationException, TimeoutException {
         ReverseEtlSyncStatusResponse response = Await.until(
-            () -> {
+            () ->
+            {
                 ReverseEtlSyncStatusResponse statusResponse = getStatus(runContext, modelId, syncId);
 
                 if (statusResponse == null || statusResponse.getData() == null) {
@@ -160,7 +162,8 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
 
     private ReverseEtlSyncStatusResponse getStatus(RunContext runContext, @NotNull Property<String> modelId, String syncId) {
         try {
-            return request(runContext,
+            return request(
+                runContext,
                 "GET",
                 "/reverse-etl-models/"
                     + runContext.render(modelId).as(String.class).orElseThrow()

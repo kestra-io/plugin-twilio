@@ -1,5 +1,7 @@
 package io.kestra.plugin.twilio.segment.reverseetl;
 
+import java.io.IOException;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.http.client.HttpClientException;
 import io.kestra.core.models.annotations.Example;
@@ -10,14 +12,13 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.twilio.segment.AbstractSegmentConnection;
 import io.kestra.plugin.twilio.segment.reverseetl.models.ReverseEtlSyncStatus;
 import io.kestra.plugin.twilio.segment.reverseetl.models.ReverseEtlSyncStatusResponse;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-
-import java.io.IOException;
 
 @SuperBuilder
 @Getter
@@ -62,7 +63,8 @@ public class Status extends AbstractSegmentConnection implements RunnableTask<St
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException, HttpClientException, IOException {
-        ReverseEtlSyncStatusResponse response = request(runContext,
+        ReverseEtlSyncStatusResponse response = request(
+            runContext,
             "GET",
             "/reverse-etl-models/"
                 + runContext.render(modelId).as(String.class).orElseThrow()
