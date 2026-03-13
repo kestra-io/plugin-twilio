@@ -1,4 +1,4 @@
-# Kestra Segment Plugin
+# Kestra Twilio Plugin
 
 ## What
 
@@ -32,7 +32,7 @@ Infrastructure dependencies (Docker Compose services):
 ### Project Structure
 
 ```
-plugin-segment/
+plugin-twilio/
 ├── src/main/java/io/kestra/plugin/twilio/sendgrid/
 ├── src/test/java/io/kestra/plugin/twilio/sendgrid/
 ├── build.gradle
