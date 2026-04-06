@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -26,17 +27,20 @@ public abstract class SendGridMailTemplate extends SendGridMailSend {
         title = "Template to use",
         hidden = true
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> templateUri;
 
     @Schema(
         title = "Text template to use",
         hidden = true
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> textTemplateUri;
 
     @Schema(
         title = "Map of variables to use for the message template"
     )
+    @PluginProperty(group = "advanced")
     protected Property<Map<String, Object>> templateRenderMap;
 
     @Override

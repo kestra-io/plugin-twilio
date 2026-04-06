@@ -89,7 +89,7 @@ public class TwilioAlert extends AbstractTwilioConnection {
         title = "Twilio Notify service URL",
         description = "Format: https://notify.twilio.com/v1/Services/ISXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/Notifications"
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "connection")
     @NotBlank
     protected String url;
 
@@ -97,6 +97,7 @@ public class TwilioAlert extends AbstractTwilioConnection {
         title = "Notify payload body",
         description = "Raw JSON payload sent to Twilio; overrides templated fields when provided"
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> payload;
 
     @Schema(
@@ -104,7 +105,7 @@ public class TwilioAlert extends AbstractTwilioConnection {
         description = "Used with `authToken` for HTTP basic authentication"
     )
     @NotBlank
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     protected String accountSID;
 
     @Schema(
@@ -112,7 +113,7 @@ public class TwilioAlert extends AbstractTwilioConnection {
         description = "Secret token paired with the Account SID; store as a secret"
     )
     @NotBlank
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "connection")
     protected String authToken;
 
     @Override

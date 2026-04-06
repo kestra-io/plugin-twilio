@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @Getter
@@ -55,6 +56,7 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
         title = "Warehouse source ID",
         description = "The Segment warehouse source ID backing the Reverse ETL sync"
     )
+    @PluginProperty(group = "main")
     private Property<String> sourceId;
 
     @NotNull
@@ -62,6 +64,7 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
         title = "Reverse ETL model ID",
         description = "The Segment Reverse ETL model ID to execute"
     )
+    @PluginProperty(group = "main")
     private Property<String> modelId;
 
     @NotNull
@@ -69,6 +72,7 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
         title = "Subscription ID",
         description = "The Segment Reverse ETL subscription (mapping) ID"
     )
+    @PluginProperty(group = "main")
     private Property<String> subscriptionId;
 
     @Builder.Default
@@ -76,6 +80,7 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
         title = "Wait for completion",
         description = "Whether to wait for the Reverse ETL sync to complete before finishing the task; defaults to false"
     )
+    @PluginProperty(group = "advanced")
     private Property<Boolean> wait = Property.ofValue(false);
 
     @Builder.Default
@@ -83,6 +88,7 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
         title = "Maximum wait duration",
         description = "Maximum total time to wait for completion when wait=true; defaults to 1h"
     )
+    @PluginProperty(group = "execution")
     private Property<Duration> maxDuration = Property.ofValue(Duration.ofHours(1));
 
     @Schema(
@@ -90,6 +96,7 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
         description = "How often to poll Segment for sync status while waiting; defaults to 5s"
     )
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Duration> pollInterval = Property.ofValue(Duration.ofSeconds(5));
 
     @Builder.Default
@@ -97,6 +104,7 @@ public class Sync extends AbstractSegmentConnection implements RunnableTask<Sync
         title = "Fail on sync error",
         description = "Whether the task should fail if the Reverse ETL sync finishes with a failure status; defaults to false"
     )
+    @PluginProperty(group = "advanced")
     private Property<Boolean> errorOnFailing = Property.ofValue(false);
 
     @Override

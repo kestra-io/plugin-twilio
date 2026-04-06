@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @Getter
@@ -33,6 +34,7 @@ public abstract class AbstractSegmentConnection extends Task {
         description = "Bearer token for Segment Public API calls; must include Reverse ETL scopes for these tasks"
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> token;
 
     @Schema(
@@ -40,6 +42,7 @@ public abstract class AbstractSegmentConnection extends Task {
         description = "Base URL for Segment API requests; defaults to https://api.segmentapis.com"
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     protected Property<String> uri = Property.ofValue(BASE_URL);
 
     protected <T> HttpResponse<T> request(RunContext runContext, String method, String path, Object body, Class<T> responseType)

@@ -12,6 +12,7 @@ import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -63,18 +64,21 @@ public class SendGridMailExecution extends SendGridMailTemplate implements Execu
         description = "Defaults to the current execution ID using an expression"
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private final Property<String> executionId = Property.ofExpression("{{ execution.id }}");
 
     @Schema(
         title = "Custom fields",
         description = "Additional key-value pairs merged into the template context"
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, Object>> customFields;
 
     @Schema(
         title = "Custom message",
         description = "Optional message rendered into the template alongside execution details"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> customMessage;
 
     @Override
