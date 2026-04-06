@@ -19,6 +19,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @Getter
@@ -52,6 +53,7 @@ public class Status extends AbstractSegmentConnection implements RunnableTask<St
         description = "Segment model identifier that owns the sync"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> modelId;
 
     @Schema(
@@ -59,6 +61,7 @@ public class Status extends AbstractSegmentConnection implements RunnableTask<St
         description = "Sync identifier returned by the trigger operation"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> syncId;
 
     @Override

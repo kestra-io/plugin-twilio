@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -30,30 +31,35 @@ public abstract class TwilioTemplate extends TwilioAlert {
         title = "Template to use",
         hidden = true
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> templateUri;
 
     @Schema(
         title = "Template variables",
         description = "Key-value map rendered before applying the message template"
     )
+    @PluginProperty(group = "advanced")
     protected Property<Map<String, Object>> templateRenderMap;
 
     @Schema(
         title = "Notification body override",
         description = "Optional string merged into the payload as `Body`; rendered with flow variables"
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> body;
 
     @Schema(
         title = "Recipient identity",
         description = "Notify identity used to target specific devices when provided"
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> identity;
 
     @Schema(
         title = "Recipient tag",
         description = "Notify tag used to target user groups"
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> tag;
 
     @SuppressWarnings("unchecked")

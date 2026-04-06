@@ -31,7 +31,7 @@ public abstract class AbstractTwilioConnection extends Task implements RunnableT
         title = "Options",
         description = "Optional HTTP client overrides for timeouts, charset, headers, and max content length"
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     protected RequestOptions options;
 
     protected HttpConfiguration httpClientConfigurationWithOptions() throws IllegalVariableEvaluationException {
@@ -75,6 +75,7 @@ public abstract class AbstractTwilioConnection extends Task implements RunnableT
             title = "Connect timeout",
             description = "Time allowed to establish the HTTP connection before failing"
         )
+        @PluginProperty(group = "execution")
         private final Property<Duration> connectTimeout;
 
         @Schema(
@@ -82,6 +83,7 @@ public abstract class AbstractTwilioConnection extends Task implements RunnableT
             description = "Maximum time to read data before failing; defaults to 10s"
         )
         @Builder.Default
+        @PluginProperty(group = "execution")
         private final Property<Duration> readTimeout = Property.ofValue(Duration.ofSeconds(10));
 
         @Schema(
@@ -89,6 +91,7 @@ public abstract class AbstractTwilioConnection extends Task implements RunnableT
             description = "How long a read connection may stay idle before closing; defaults to 5m"
         )
         @Builder.Default
+        @PluginProperty(group = "execution")
         private final Property<Duration> readIdleTimeout = Property.ofValue(Duration.of(5, ChronoUnit.MINUTES));
 
         @Schema(
@@ -96,6 +99,7 @@ public abstract class AbstractTwilioConnection extends Task implements RunnableT
             description = "Time an idle pooled connection stays open before closing; defaults to 0s (no TTL)"
         )
         @Builder.Default
+        @PluginProperty(group = "execution")
         private final Property<Duration> connectionPoolIdleTimeout = Property.ofValue(Duration.ofSeconds(0));
 
         @Schema(
@@ -103,6 +107,7 @@ public abstract class AbstractTwilioConnection extends Task implements RunnableT
             description = "Maximum response content length in bytes; defaults to 10MB"
         )
         @Builder.Default
+        @PluginProperty(group = "execution")
         private final Property<Integer> maxContentLength = Property.ofValue(1024 * 1024 * 10);
 
         @Schema(
@@ -110,12 +115,14 @@ public abstract class AbstractTwilioConnection extends Task implements RunnableT
             description = "Charset applied to requests when not specified; defaults to UTF-8"
         )
         @Builder.Default
+        @PluginProperty(group = "advanced")
         private final Property<Charset> defaultCharset = Property.ofValue(StandardCharsets.UTF_8);
 
         @Schema(
             title = "HTTP headers",
             description = "HTTP headers to include in the request"
         )
+        @PluginProperty(group = "advanced")
         public Property<Map<String, String>> headers;
     }
 }

@@ -84,7 +84,7 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
         description = "API key used to authenticate SendGrid requests; store as a secret"
     )
     @NotBlank
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "connection")
     private String sendgridApiKey;
 
     /* Mail info */
@@ -92,7 +92,7 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
         title = "Sender email address",
         description = "Must comply with RFC 2822 formatting"
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "source")
     @NotBlank
     private String from;
 
@@ -101,43 +101,49 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
         description = "Each address must comply with RFC 2822 format"
     )
     @NotEmpty
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "destination")
     private List<String> to;
 
     @Schema(
         title = "Cc recipients",
         description = "Optional carbon-copy recipients in RFC 2822 format"
     )
+    @PluginProperty(group = "advanced")
     private Property<List<String>> cc;
 
     @Schema(
         title = "Email subject",
         description = "Optional subject line rendered from flow variables"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> subject;
 
     @Schema(
         title = "HTML body",
         description = "Optional HTML content. When both HTML and text are provided, email clients treat them as alternatives and typically favor HTML."
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> htmlContent;
 
     @Schema(
         title = "Plain text body",
         description = "Optional text content. When both HTML and text are provided, clients choose based on capability."
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> textContent;
 
     @Schema(
         title = "File attachments",
         description = "List of files loaded from Kestra storage and attached to the email; delivered as downloadable attachments"
     )
+    @PluginProperty(group = "advanced")
     private List<Attachment> attachments;
 
     @Schema(
         title = "Inline embedded images",
         description = "Images loaded from storage and attached with inline disposition for HTML content"
     )
+    @PluginProperty(group = "advanced")
     private List<Attachment> embeddedImages;
 
     @Override
@@ -231,6 +237,7 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
             description = "URI in Kestra internal storage that supplies the file content"
         )
         @NotNull
+        @PluginProperty(group = "main")
         private Property<String> uri;
 
         @Schema(
@@ -238,6 +245,7 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
             description = "Filename presented to recipients, e.g., 'report.pdf'"
         )
         @NotNull
+        @PluginProperty(group = "main")
         private Property<String> name;
 
         @Schema(
@@ -246,6 +254,7 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
         )
         @NotNull
         @Builder.Default
+        @PluginProperty(group = "main")
         private Property<String> contentType = Property.ofValue("application/octet-stream");
     }
 
