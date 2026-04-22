@@ -84,7 +84,7 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
         description = "API key used to authenticate SendGrid requests; store as a secret"
     )
     @NotBlank
-    @PluginProperty(dynamic = true, group = "connection")
+    @PluginProperty(secret = true, dynamic = true, group = "connection")
     private String sendgridApiKey;
 
     /* Mail info */

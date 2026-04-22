@@ -34,7 +34,7 @@ public abstract class AbstractSegmentConnection extends Task {
         description = "Bearer token for Segment Public API calls; must include Reverse ETL scopes for these tasks"
     )
     @NotNull
-    @PluginProperty(group = "main")
+    @PluginProperty(group = "main", secret = true)
     protected Property<String> token;
 
     @Schema(

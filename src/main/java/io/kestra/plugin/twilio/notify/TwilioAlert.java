@@ -113,7 +113,7 @@ public class TwilioAlert extends AbstractTwilioConnection {
         description = "Secret token paired with the Account SID; store as a secret"
     )
     @NotBlank
-    @PluginProperty(dynamic = true, group = "connection")
+    @PluginProperty(secret = true, dynamic = true, group = "connection")
     protected String authToken;
 
     @Override
