@@ -4,8 +4,9 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Objects;
 
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.flows.State;
@@ -19,6 +20,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @KestraTest
 class SendGridMailExecutionTest extends AbstractTwilioTest {
     @Inject
@@ -27,7 +29,7 @@ class SendGridMailExecutionTest extends AbstractTwilioTest {
     @Inject
     protected LocalFlowRepositoryLoader repositoryLoader;
 
-    @BeforeEach
+    @BeforeAll
     void init() throws IOException, URISyntaxException {
         repositoryLoader.load(Objects.requireNonNull(SendGridMailExecutionTest.class.getClassLoader().getResource("flows/common")));
         repositoryLoader.load(Objects.requireNonNull(SendGridMailExecutionTest.class.getClassLoader().getResource("flows/sendgrid")));
