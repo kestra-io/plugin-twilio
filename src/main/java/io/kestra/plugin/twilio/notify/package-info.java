@@ -1,4 +1,5 @@
 @PluginSubGroup(
+    title = "Twilio Messaging",
     description = "This sub-group of plugins contains tasks for Twilio notifications.",
     categories = PluginSubGroup.PluginCategory.BUSINESS
 )
