@@ -83,7 +83,7 @@ import lombok.experimental.SuperBuilder;
     },
     aliases = "io.kestra.plugin.notifications.twilio.TwilioAlert"
 )
-public class TwilioAlert extends AbstractTwilioConnection {
+public class TwilioAlert extends AbstractTwilioConnection implements io.kestra.core.models.tasks.RunnableTask<VoidOutput> {
 
     @Schema(
         title = "Twilio Notify service URL",

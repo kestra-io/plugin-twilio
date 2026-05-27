@@ -12,9 +12,7 @@ import io.kestra.core.http.client.configurations.HttpConfiguration;
 import io.kestra.core.http.client.configurations.TimeoutConfiguration;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
-import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -26,7 +24,7 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public abstract class AbstractTwilioConnection extends Task implements RunnableTask<VoidOutput> {
+public abstract class AbstractTwilioConnection extends Task {
     @Schema(
         title = "Options",
         description = "Optional HTTP client overrides for timeouts, charset, headers, and max content length"

@@ -1,0 +1,8 @@
+group: io.kestra.plugin.twilio.notify.sms
+name: "sms"
+title: "Twilio SMS"
+description: "Tasks that send SMS messages via the Twilio Programmable Messaging API."
+body: "Provide Twilio account SID, auth token, and from/to phone numbers to send SMS messages from Kestra workflows."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
