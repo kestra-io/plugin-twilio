@@ -1,0 +1,8 @@
+group: io.kestra.plugin.twilio.notify.mms
+name: "mms"
+title: "Twilio MMS"
+description: "Tasks that send MMS messages via the Twilio Programmable Messaging API."
+body: "Provide Twilio account SID, auth token, from/to phone numbers, and media URLs to send MMS messages from Kestra workflows."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

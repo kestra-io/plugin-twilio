@@ -27,6 +27,8 @@ Infrastructure dependencies (Docker Compose services):
 
 - `io.kestra.plugin.twilio.notify.TwilioAlert`
 - `io.kestra.plugin.twilio.notify.TwilioExecution`
+- `io.kestra.plugin.twilio.notify.sms.Send` — send SMS via Twilio Programmable Messaging API
+- `io.kestra.plugin.twilio.notify.mms.Send` — send MMS via Twilio Programmable Messaging API
 - `io.kestra.plugin.twilio.segment.reverseetl.Status`
 - `io.kestra.plugin.twilio.segment.reverseetl.Sync`
 - `io.kestra.plugin.twilio.sendgrid.SendGridMailExecution`
@@ -36,7 +38,12 @@ Infrastructure dependencies (Docker Compose services):
 
 ```
 plugin-twilio/
+├── src/main/java/io/kestra/plugin/twilio/notify/
+│   ├── sms/Send.java
+│   └── mms/Send.java
 ├── src/main/java/io/kestra/plugin/twilio/sendgrid/
+├── src/test/java/io/kestra/plugin/twilio/notify/sms/
+├── src/test/java/io/kestra/plugin/twilio/notify/mms/
 ├── src/test/java/io/kestra/plugin/twilio/sendgrid/
 ├── build.gradle
 └── README.md
