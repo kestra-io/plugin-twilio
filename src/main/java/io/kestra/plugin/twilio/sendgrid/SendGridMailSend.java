@@ -261,8 +261,13 @@ public class SendGridMailSend extends Task implements RunnableTask<SendGridMailS
     @Getter
     @Builder
     public static class Output implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "Response body returned by the SendGrid API")
         private String body;
+
+        @Schema(title = "Response headers returned by the SendGrid API")
         private Map<String, String> headers;
+
+        @Schema(title = "HTTP status code returned by the SendGrid API")
         private int statusCode;
     }
 }
