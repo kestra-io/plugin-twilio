@@ -6,7 +6,7 @@ The Twilio plugin connects Kestra workflows to Twilio Notify push messages, Segm
 
 Authentication is configured per service.
 
-**Twilio Notify:** Set `accountSID` and `authToken` on each `notify.*` task; requests use HTTP Basic auth. Set `url` to your Notify service endpoint (`https://notify.twilio.com/v1/Services/{ServiceSid}/Notifications`). Store both credentials as [secrets](https://kestra.io/docs/concepts/secret) and apply them globally with [plugin defaults](https://kestra.io/docs/workflow-components/plugin-defaults).
+**Twilio Notify:** Set `accountSID` and `authToken` on each `notify.*` task; requests use HTTP Basic auth. Set `url` to your Notify service endpoint (`https://notify.twilio.com/v1/Services/{ServiceSid}/Notifications`). Store both credentials as [secrets](https://kestra.io/docs/concepts/secret) and set them on each task.
 
 **Segment:** Set `token` to a Segment Public API bearer token with Reverse ETL scopes. Optionally override `uri` (defaults to `https://api.segmentapis.com`) for custom endpoints. Store the token as a [secret](https://kestra.io/docs/concepts/secret).
 
