@@ -46,7 +46,7 @@
 ## What
 
 - Provides plugin components under `io.kestra.plugin.twilio`.
-- Includes classes such as `TwilioAlert`, `TwilioTemplate`, `TwilioExecution`, `SendGridMailExecution`.
+- Includes classes such as `TwilioAlert`, `TwilioTemplate`, `TwilioExecution`, `SendGridMailExecution`, `notify.rcs.SendMessage`.
 
 ## Documentation
 * Full documentation can be found under: [kestra.io/docs](https://kestra.io/docs)

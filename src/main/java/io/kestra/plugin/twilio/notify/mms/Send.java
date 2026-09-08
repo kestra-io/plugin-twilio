@@ -1,6 +1,7 @@
 package io.kestra.plugin.twilio.notify.mms;
 
 import java.util.List;
+import java.util.Optional;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -91,11 +92,14 @@ public class Send extends AbstractMessageSend {
     private Property<List<String>> mediaUrls;
 
     @Override
-    protected void additionalFormParameters(RunContext runContext, List<String> formParameters) throws Exception {
+    protected void additionalFormParameters(RunContext runContext, List<String> formParameters, Optional<String> renderedBody) throws Exception {
         var rMediaUrls = runContext.render(mediaUrls).asList(String.class);
 
         if (rMediaUrls.isEmpty()) {
             throw new IllegalArgumentException("mediaUrls must contain at least one URL");
+        }
+        if (rMediaUrls.size() > 10) {
+            throw new IllegalArgumentException("mediaUrls must not contain more than 10 URLs, Twilio accepts at most 10 per message");
         }
 
         rMediaUrls.forEach(url -> formParameters.add(formPair("MediaUrl", url)));

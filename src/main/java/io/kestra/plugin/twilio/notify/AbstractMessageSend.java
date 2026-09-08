@@ -6,8 +6,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import io.kestra.core.http.HttpRequest;
 import io.kestra.core.http.HttpResponse;
@@ -37,7 +40,8 @@ import lombok.experimental.SuperBuilder;
 public abstract class AbstractMessageSend extends AbstractTwilioConnection implements RunnableTask<AbstractMessageSend.Output> {
 
     private static final String DEFAULT_BASE_URL = "https://api.twilio.com";
-    private static final String ACCOUNT_SID_PATTERN = "AC[0-9a-fA-F]{32}";
+    private static final Pattern ACCOUNT_SID_PATTERN = Pattern.compile("AC[0-9a-fA-F]{32}");
+    private static final Pattern MESSAGING_SERVICE_SID_PATTERN = Pattern.compile("MG[0-9a-fA-F]{32}");
 
     @NotNull
     @Schema(
@@ -48,6 +52,7 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
     private Property<String> accountSID;
 
     @NotNull
+    @ToString.Exclude
     @Schema(
         title = "Twilio Auth Token",
         description = "The Auth Token paired with the Account SID; store as a Kestra secret"
@@ -55,13 +60,19 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
     @PluginProperty(secret = true, group = "connection")
     private Property<String> authToken;
 
-    @NotNull
     @Schema(
-        title = "Sender phone number or Messaging Service SID",
-        description = "The Twilio number or Messaging Service SID to send from"
+        title = "Sender phone number",
+        description = "The Twilio phone number, alphanumeric sender ID, or short code to send from. Mutually exclusive with `messagingServiceSid`"
     )
     @PluginProperty(group = "main")
     private Property<String> from;
+
+    @Schema(
+        title = "Messaging Service SID",
+        description = "SID of a Twilio Messaging Service (`MG...`) to send through, which picks the sender from the service's pool. Required for channels configured on a Messaging Service, such as RCS. Mutually exclusive with `from`"
+    )
+    @PluginProperty(group = "main")
+    private Property<String> messagingServiceSid;
 
     @NotNull
     @Schema(
@@ -71,7 +82,6 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
     @PluginProperty(group = "main")
     private Property<String> to;
 
-    @NotNull
     @Schema(
         title = "Message body",
         description = "The text content of the message"
@@ -84,26 +94,35 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
         return DEFAULT_BASE_URL;
     }
 
-    // Subclasses add extra form parameters (e.g. MediaUrl). Default: none.
-    protected void additionalFormParameters(RunContext runContext, List<String> formParameters) throws Exception {
+    // False for channels that can carry content without a text body, e.g. an RCS content template.
+    protected boolean requiresBody() {
+        return true;
+    }
+
+    // Subclasses add extra form parameters (e.g. MediaUrl, ContentSid). Default: none.
+    protected void additionalFormParameters(RunContext runContext, List<String> formParameters, Optional<String> renderedBody) throws Exception {
     }
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         var rAccountSID = runContext.render(accountSID).as(String.class).orElseThrow(() -> new IllegalArgumentException("accountSID is required"));
-        if (!rAccountSID.matches(ACCOUNT_SID_PATTERN)) {
+        if (!ACCOUNT_SID_PATTERN.matcher(rAccountSID).matches()) {
             throw new IllegalArgumentException("accountSID must be a valid Twilio Account SID (AC followed by 32 hex characters)");
         }
         var rAuthToken = runContext.render(authToken).as(String.class).orElseThrow(() -> new IllegalArgumentException("authToken is required"));
-        var rFrom = runContext.render(from).as(String.class).orElseThrow(() -> new IllegalArgumentException("from is required"));
         var rTo = runContext.render(to).as(String.class).orElseThrow(() -> new IllegalArgumentException("to is required"));
-        var rBody = runContext.render(body).as(String.class).orElseThrow(() -> new IllegalArgumentException("body is required"));
 
         List<String> formParameters = new ArrayList<>();
-        formParameters.add(formPair("From", rFrom));
         formParameters.add(formPair("To", rTo));
-        formParameters.add(formPair("Body", rBody));
-        additionalFormParameters(runContext, formParameters);
+        formParameters.add(senderFormParameter(runContext));
+
+        var rBody = renderedBody(runContext);
+        if (requiresBody() && rBody.isEmpty()) {
+            throw new IllegalArgumentException("body is required");
+        }
+        rBody.ifPresent(value -> formParameters.add(formPair("Body", value)));
+
+        additionalFormParameters(runContext, formParameters, rBody);
 
         var url = baseUrl() + "/2010-04-01/Accounts/" + rAccountSID + "/Messages.json";
         var authHeader = Base64.getEncoder().encodeToString(
@@ -117,31 +136,35 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
                 .addHeader("Authorization", "Basic " + authHeader)
                 .uri(URI.create(url))
                 .method("POST")
-                .body(HttpRequest.StringRequestBody.builder()
-                    .contentType("application/x-www-form-urlencoded")
-                    .charset(StandardCharsets.UTF_8)
-                    .content(String.join("&", formParameters))
-                    .build())
+                .body(
+                    HttpRequest.StringRequestBody.builder()
+                        .contentType("application/x-www-form-urlencoded")
+                        .charset(StandardCharsets.UTF_8)
+                        .content(String.join("&", formParameters))
+                        .build()
+                )
                 .build();
 
             HttpResponse<String> response;
             try {
                 response = client.request(request, String.class);
             } catch (HttpClientResponseException e) {
-                throw new RuntimeException(
-                    "Twilio Messages API returned HTTP " + e.getResponse().getStatus().getCode() + ": " + e.getResponse().getBody(),
+                throw new TwilioApiException(
+                    "Twilio Messages API returned HTTP " + e.getResponse().getStatus().getCode() + ": " + errorDetail(bodyText(e.getResponse().getBody()))
+                        + ". Check the request parameters (e.g. 'to'/'from' format) and Twilio account configuration.",
                     e
                 );
             }
 
             var statusCode = response.getStatus().getCode();
             if (statusCode != 201) {
-                throw new RuntimeException(
-                    "Twilio Messages API returned HTTP " + statusCode + ": " + response.getBody()
+                throw new TwilioApiException(
+                    "Twilio Messages API returned HTTP " + statusCode + ": " + errorDetail(response.getBody())
+                        + ". Check the request parameters (e.g. 'to'/'from' format) and Twilio account configuration."
                 );
             }
 
-            var parsed = JacksonMapper.ofJson().readValue(response.getBody(), MessageResponse.class);
+            var parsed = parseMessage(response.getBody(), statusCode);
             runContext.logger().info("Message sent, sid={} status={}", parsed.getSid(), parsed.getStatus());
 
             return Output.builder()
@@ -151,8 +174,95 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
         }
     }
 
+    /**
+     * Twilio treats {@code From} and {@code MessagingServiceSid} as distinct parameters, so an
+     * {@code MG...} SID passed as {@code from} is rejected rather than resolved to its sender pool.
+     */
+    private String senderFormParameter(RunContext runContext) throws Exception {
+        var rFrom = runContext.render(from).as(String.class).filter(value -> !value.isBlank());
+        var rMessagingServiceSid = runContext.render(messagingServiceSid).as(String.class).filter(value -> !value.isBlank());
+
+        if (rFrom.isPresent() && rMessagingServiceSid.isPresent()) {
+            throw new IllegalArgumentException("from and messagingServiceSid are mutually exclusive, set only one");
+        }
+        if (rMessagingServiceSid.isPresent()) {
+            return formPair("MessagingServiceSid", rMessagingServiceSid.get());
+        }
+        if (rFrom.isPresent()) {
+            if (MESSAGING_SERVICE_SID_PATTERN.matcher(rFrom.get()).matches()) {
+                throw new IllegalArgumentException("from looks like a Messaging Service SID, set it on messagingServiceSid instead");
+            }
+            return formPair("From", rFrom.get());
+        }
+
+        throw new IllegalArgumentException("either from or messagingServiceSid is required");
+    }
+
+    private Optional<String> renderedBody(RunContext runContext) throws Exception {
+        return runContext.render(body).as(String.class).filter(value -> !value.isBlank());
+    }
+
+    // On the error path Kestra hands back HttpResponse<byte[]>, so this must decode rather than toString.
+    private static String bodyText(Object rawBody) {
+        if (rawBody == null) {
+            return null;
+        }
+        if (rawBody instanceof byte[] bytes) {
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+        return rawBody.toString();
+    }
+
+    private MessageResponse parseMessage(String responseBody, int statusCode) {
+        if (responseBody == null || responseBody.isBlank()) {
+            throw new TwilioApiException(
+                "Twilio Messages API returned HTTP " + statusCode + " with an empty body. This may indicate a transient Twilio API issue; retry the task."
+            );
+        }
+
+        try {
+            return JacksonMapper.ofJson().readValue(responseBody, MessageResponse.class);
+        } catch (JsonProcessingException e) {
+            throw new TwilioApiException(
+                "Twilio Messages API returned an unparseable body: " + responseBody + ". Check the Twilio status page or retry the task.",
+                e
+            );
+        }
+    }
+
+    /**
+     * Extracts the Twilio error {@code message}/{@code more_info} fields from an error response body,
+     * falling back to the raw body when it isn't the expected Twilio error JSON shape.
+     */
+    private static String errorDetail(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return "(empty body)";
+        }
+        try {
+            var node = JacksonMapper.ofJson().readTree(responseBody);
+            var message = node.path("message").asText(null);
+            if (message != null) {
+                var moreInfo = node.path("more_info").asText(null);
+                return moreInfo != null ? message + " (see " + moreInfo + ")" : message;
+            }
+        } catch (JsonProcessingException ignored) {
+            // Not JSON, fall through to the raw body.
+        }
+        return responseBody;
+    }
+
     protected static String formPair(String key, String value) {
         return URLEncoder.encode(key, StandardCharsets.UTF_8) + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private static class TwilioApiException extends RuntimeException {
+        TwilioApiException(String message) {
+            super(message);
+        }
+
+        TwilioApiException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 
     @Builder
