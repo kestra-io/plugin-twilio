@@ -1,0 +1,8 @@
+group: io.kestra.plugin.twilio.rcs
+name: "rcs"
+title: "Twilio RCS"
+description: "Tasks that send RCS messages via the Twilio Messages API."
+body: "Provide Twilio account SID, auth token, an RCS-enabled sender, and message text or a content template SID to send RCS messages from Kestra workflows. Twilio falls back to SMS when the recipient cannot receive RCS."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
