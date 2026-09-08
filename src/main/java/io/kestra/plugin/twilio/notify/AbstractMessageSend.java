@@ -1,4 +1,4 @@
-package io.kestra.plugin.twilio;
+package io.kestra.plugin.twilio.notify;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -21,6 +21,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.plugin.twilio.AbstractTwilioConnection;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

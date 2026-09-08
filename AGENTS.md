@@ -39,8 +39,8 @@ Infrastructure dependencies (Docker Compose services):
 
 ```
 plugin-twilio/
-├── src/main/java/io/kestra/plugin/twilio/AbstractMessageSend.java
 ├── src/main/java/io/kestra/plugin/twilio/notify/
+│   ├── AbstractMessageSend.java
 │   ├── sms/Send.java
 │   ├── mms/Send.java
 │   └── rcs/SendMessage.java
