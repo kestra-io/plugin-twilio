@@ -1,4 +1,4 @@
-group: io.kestra.plugin.twilio.rcs
+group: io.kestra.plugin.twilio.notify.rcs
 name: "rcs"
 title: "Twilio RCS"
 description: "Tasks that send RCS messages via the Twilio Messages API."

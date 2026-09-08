@@ -20,7 +20,7 @@ Authentication is configured per service.
 
 `notify.sms.Send` and `notify.mms.Send` post to the Twilio Messages API. Both require `accountSID`, `authToken`, `to`, `body`, and one sender: either `from` (a Twilio phone number, alphanumeric sender ID, or short code) or `messagingServiceSid` (a `MG...` Messaging Service, which picks the sender from its pool). `mms.Send` additionally requires `mediaUrls`, up to 10 publicly reachable URLs. Both return the message `sid` and `status`.
 
-`rcs.SendMessage` sends over RCS through a Messaging Service that has an RCS sender, so it takes `messagingServiceSid` rather than `from`. Set `body` for plain text, `contentSid` for a Content API template (`HX...`), or both. Twilio decides RCS versus SMS per recipient and falls back to SMS on its own, so no fallback configuration is sent or needed. Output is the same `sid` and `status`.
+`notify.rcs.SendMessage` sends over RCS through a Messaging Service that has an RCS sender, so it takes `messagingServiceSid` rather than `from`. Set `body` for plain text, `contentSid` for a Content API template (`HX...`), or both. Twilio decides RCS versus SMS per recipient and falls back to SMS on its own, so no fallback configuration is sent or needed. Output is the same `sid` and `status`.
 
 `segment.reverseetl.Sync` triggers a manual Reverse ETL sync — `sourceId`, `modelId`, and `subscriptionId` are all required. By default `wait` is `false` (fire-and-forget); set `wait: true` to poll until completion, controlled by `maxDuration` (default 1h) and `pollInterval` (default 5s). Set `errorOnFailing: true` to fail the task when the sync reports an error. Use `segment.reverseetl.Status` to check the status of an already-running sync by `modelId` and `syncId`.
 

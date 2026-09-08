@@ -1,4 +1,4 @@
-package io.kestra.plugin.twilio.rcs;
+package io.kestra.plugin.twilio.notify.rcs;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -50,7 +50,7 @@ import lombok.experimental.SuperBuilder;
 
                 errors:
                   - id: send_rcs_alert
-                    type: io.kestra.plugin.twilio.rcs.SendMessage
+                    type: io.kestra.plugin.twilio.notify.rcs.SendMessage
                     accountSID: "{{ secret('TWILIO_ACCOUNT_SID') }}"
                     authToken: "{{ secret('TWILIO_AUTH_TOKEN') }}"
                     messagingServiceSid: "{{ secret('TWILIO_MESSAGING_SERVICE_SID') }}"
@@ -71,7 +71,7 @@ import lombok.experimental.SuperBuilder;
 
                 tasks:
                   - id: send_message
-                    type: io.kestra.plugin.twilio.rcs.SendMessage
+                    type: io.kestra.plugin.twilio.notify.rcs.SendMessage
                     accountSID: "{{ secret('TWILIO_ACCOUNT_SID') }}"
                     authToken: "{{ secret('TWILIO_AUTH_TOKEN') }}"
                     messagingServiceSid: "{{ secret('TWILIO_MESSAGING_SERVICE_SID') }}"

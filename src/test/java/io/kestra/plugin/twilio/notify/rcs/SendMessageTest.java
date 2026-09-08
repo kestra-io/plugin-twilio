@@ -1,4 +1,4 @@
-package io.kestra.plugin.twilio.rcs;
+package io.kestra.plugin.twilio.notify.rcs;
 
 import java.util.Map;
 
