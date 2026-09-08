@@ -121,11 +121,13 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
                 .addHeader("Authorization", "Basic " + authHeader)
                 .uri(URI.create(url))
                 .method("POST")
-                .body(HttpRequest.StringRequestBody.builder()
-                    .contentType("application/x-www-form-urlencoded")
-                    .charset(StandardCharsets.UTF_8)
-                    .content(String.join("&", formParameters))
-                    .build())
+                .body(
+                    HttpRequest.StringRequestBody.builder()
+                        .contentType("application/x-www-form-urlencoded")
+                        .charset(StandardCharsets.UTF_8)
+                        .content(String.join("&", formParameters))
+                        .build()
+                )
                 .build();
 
             HttpResponse<String> response;
