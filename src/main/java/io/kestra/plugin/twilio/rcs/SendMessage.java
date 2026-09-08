@@ -24,9 +24,9 @@ import lombok.experimental.SuperBuilder;
 @Schema(
     title = "Send an RCS message via Twilio",
     description = """
-        Posts a message to the Twilio Messages API from an RCS-enabled sender, using Account SID and Auth Token for basic authentication.
+        Posts a message to the Twilio Messages API through a Messaging Service that has an RCS sender, using Account SID and Auth Token for basic authentication.
         Twilio falls back to SMS when the recipient's device or carrier does not support RCS, so the same task covers both cases without extra configuration.
-        Set `contentSid` to send a rich RCS content template instead of plain text.
+        Set `body` for a plain text message, `contentSid` to send a rich RCS content template, or both.
         Returns the Twilio message SID and delivery status from the API response.
         See the <a href="https://www.twilio.com/docs/channels/rcs">Twilio RCS documentation</a> for details.
         """
@@ -52,7 +52,7 @@ import lombok.experimental.SuperBuilder;
                     type: io.kestra.plugin.twilio.rcs.SendMessage
                     accountSID: "{{ secret('TWILIO_ACCOUNT_SID') }}"
                     authToken: "{{ secret('TWILIO_AUTH_TOKEN') }}"
-                    from: "{{ secret('TWILIO_RCS_SENDER') }}"
+                    messagingServiceSid: "{{ secret('TWILIO_MESSAGING_SERVICE_SID') }}"
                     to: "+15555550100"
                     body: "Flow {{ flow.id }} failed on execution {{ execution.id }}."
                 """
@@ -73,10 +73,9 @@ import lombok.experimental.SuperBuilder;
                     type: io.kestra.plugin.twilio.rcs.SendMessage
                     accountSID: "{{ secret('TWILIO_ACCOUNT_SID') }}"
                     authToken: "{{ secret('TWILIO_AUTH_TOKEN') }}"
-                    from: "{{ secret('TWILIO_RCS_SENDER') }}"
+                    messagingServiceSid: "{{ secret('TWILIO_MESSAGING_SERVICE_SID') }}"
                     to: "{{ inputs.recipient }}"
                     contentSid: "{{ secret('TWILIO_CONTENT_SID') }}"
-                    body: "Your order has been shipped."
 
                   - id: log_result
                     type: io.kestra.plugin.core.log.Log
@@ -89,15 +88,25 @@ public class SendMessage extends AbstractMessageSend {
 
     @Schema(
         title = "Content template SID",
-        description = "SID of a Twilio Content API template (`HX...`) to render as a rich RCS message; when omitted the message body is sent as plain text"
+        description = "SID of a Twilio Content API template (`HX...`) to render as a rich RCS message. Either this or `body` must be set"
     )
     @PluginProperty(group = "main")
     private Property<String> contentSid;
 
+    // A content template carries its own content, so body is only required without one.
+    @Override
+    protected boolean requiresBody() {
+        return false;
+    }
+
     @Override
     protected void additionalFormParameters(RunContext runContext, List<String> formParameters) throws Exception {
-        runContext.render(contentSid).as(String.class)
-            .filter(sid -> !sid.isBlank())
-            .ifPresent(sid -> formParameters.add(formPair("ContentSid", sid)));
+        var rContentSid = runContext.render(contentSid).as(String.class).filter(sid -> !sid.isBlank());
+
+        if (rContentSid.isEmpty() && renderedBody(runContext).isEmpty()) {
+            throw new IllegalArgumentException("either body or contentSid is required");
+        }
+
+        rContentSid.ifPresent(sid -> formParameters.add(formPair("ContentSid", sid)));
     }
 }

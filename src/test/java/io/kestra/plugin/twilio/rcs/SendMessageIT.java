@@ -18,8 +18,8 @@ import static org.hamcrest.Matchers.*;
 /**
  * Hits the real Twilio Messages API and sends an actual RCS message (or its SMS fallback).
  * Enabled only when all TWILIO_* credentials are present (system property or environment
- * variable), so CI and local unit runs skip it. TWILIO_RCS_SENDER must be an RCS-enabled
- * Messaging Service SID; on a trial account the recipient must be a verified number.
+ * variable), so CI and local unit runs skip it. TWILIO_MESSAGING_SERVICE_SID must name a
+ * Messaging Service with an RCS sender. On a trial account the recipient must be verified.
  */
 @KestraTest
 @EnabledIf("integrationTestEnabled")
@@ -35,7 +35,7 @@ class SendMessageIT {
         SendMessage task = SendMessage.builder()
             .accountSID(Property.ofValue(cred("TWILIO_ACCOUNT_SID")))
             .authToken(Property.ofValue(cred("TWILIO_AUTH_TOKEN")))
-            .from(Property.ofValue(cred("TWILIO_RCS_SENDER")))
+            .messagingServiceSid(Property.ofValue(cred("TWILIO_MESSAGING_SERVICE_SID")))
             .to(Property.ofValue(cred("TWILIO_TO_NUMBER")))
             .body(Property.ofValue("Integration test from the Kestra Twilio plugin."))
             .build();
@@ -49,7 +49,7 @@ class SendMessageIT {
     private static boolean integrationTestEnabled() {
         return notBlank("TWILIO_ACCOUNT_SID")
             && notBlank("TWILIO_AUTH_TOKEN")
-            && notBlank("TWILIO_RCS_SENDER")
+            && notBlank("TWILIO_MESSAGING_SERVICE_SID")
             && notBlank("TWILIO_TO_NUMBER");
     }
 

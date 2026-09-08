@@ -9,7 +9,6 @@ import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 
 import jakarta.inject.Inject;
@@ -25,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class SendMessageTest {
 
     private static final String MESSAGES_PATH = "/2010-04-01/Accounts/.*/Messages.json";
+    private static final String ACCOUNT_SID = "AC00000000000000000000000000000000";
+    private static final String MESSAGING_SERVICE_SID = "MG00000000000000000000000000000000";
 
     @Inject
     private RunContextFactory runContextFactory;
@@ -41,25 +42,18 @@ class SendMessageTest {
             }
             """);
 
-        RunContext runContext = runContextFactory.of(Map.of());
-
-        SendMessage task = TestSendMessage.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("MG00000000000000000000000000000000"))
-            .to(Property.ofValue("+15555550100"))
+        SendMessage task = task(wireMock)
             .body(Property.ofValue("Hello from Kestra."))
             .build();
 
-        SendMessage.Output output = task.run(runContext);
+        SendMessage.Output output = task.run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("SM1234567890abcdef"));
         assertThat(output.getStatus(), is("queued"));
 
         verify(
             postRequestedFor(urlPathMatching(MESSAGES_PATH))
-                .withRequestBody(containing("From=MG00000000000000000000000000000000"))
+                .withRequestBody(containing("MessagingServiceSid=" + MESSAGING_SERVICE_SID))
                 .withRequestBody(containing("To=%2B15555550100"))
                 .withRequestBody(containing("Body=Hello+from+Kestra."))
                 .withRequestBody(notMatching(".*ContentSid.*"))
@@ -72,19 +66,11 @@ class SendMessageTest {
             {"sid": "SMcontent0000000000", "status": "accepted"}
             """);
 
-        RunContext runContext = runContextFactory.of(Map.of());
-
-        SendMessage task = TestSendMessage.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("MG00000000000000000000000000000000"))
-            .to(Property.ofValue("+15555550100"))
-            .body(Property.ofValue("Your order has been shipped."))
+        SendMessage task = task(wireMock)
             .contentSid(Property.ofValue("HX00000000000000000000000000000000"))
             .build();
 
-        SendMessage.Output output = task.run(runContext);
+        SendMessage.Output output = task.run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("SMcontent0000000000"));
         assertThat(output.getStatus(), is("accepted"));
@@ -92,15 +78,16 @@ class SendMessageTest {
         verify(
             postRequestedFor(urlPathMatching(MESSAGES_PATH))
                 .withRequestBody(containing("ContentSid=HX00000000000000000000000000000000"))
+                .withRequestBody(notMatching(".*Body=.*"))
         );
     }
 
     /**
-     * Twilio performs the RCS-to-SMS fallback server side: the task sees a normal 201 whose payload
-     * reports the message was delivered over SMS. Nothing extra should be required of the caller.
+     * Twilio decides RCS versus SMS server side, so the contract this pins is that the task sends no
+     * fallback configuration of its own and accepts a response describing an SMS-delivered message.
      */
     @Test
-    void fallsBackToSmsTransparently(WireMockRuntimeInfo wireMock) throws Exception {
+    void requestsNoFallbackConfigurationAndAcceptsSmsResponse(WireMockRuntimeInfo wireMock) throws Exception {
         stubMessagesApi(201, """
             {
               "sid": "SMfallback000000000",
@@ -110,21 +97,19 @@ class SendMessageTest {
             }
             """);
 
-        RunContext runContext = runContextFactory.of(Map.of());
-
-        SendMessage task = TestSendMessage.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("MG00000000000000000000000000000000"))
-            .to(Property.ofValue("+15555550100"))
-            .body(Property.ofValue("Fallback body."))
+        SendMessage task = task(wireMock)
+            .body(Property.ofValue("Delivered either way."))
             .build();
 
-        SendMessage.Output output = task.run(runContext);
+        SendMessage.Output output = task.run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("SMfallback000000000"));
         assertThat(output.getStatus(), is("queued"));
+
+        verify(
+            postRequestedFor(urlPathMatching(MESSAGES_PATH))
+                .withRequestBody(notMatching(".*(Fallback|SmsFallback|Channel|ContentRetention).*"))
+        );
     }
 
     @Test
@@ -133,34 +118,103 @@ class SendMessageTest {
             {"code":21211,"message":"The 'To' number is not a valid phone number.","status":400}
             """);
 
-        RunContext runContext = runContextFactory.of(Map.of());
-
-        SendMessage task = TestSendMessage.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("MG00000000000000000000000000000000"))
+        SendMessage task = task(wireMock)
             .to(Property.ofValue("invalid"))
             .body(Property.ofValue("test"))
             .build();
 
-        assertThrows(RuntimeException.class, () -> task.run(runContext));
+        assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
+    }
+
+    @Test
+    void failsOnEmptyResponseBody(WireMockRuntimeInfo wireMock) {
+        stubMessagesApi(201, "");
+
+        SendMessage task = task(wireMock)
+            .body(Property.ofValue("test"))
+            .build();
+
+        var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
+        assertThat(exception.getMessage(), containsString("empty body"));
+    }
+
+    @Test
+    void failsOnUnparseableResponseBody(WireMockRuntimeInfo wireMock) {
+        stubMessagesApi(201, "not json");
+
+        SendMessage task = task(wireMock)
+            .body(Property.ofValue("test"))
+            .build();
+
+        var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
+        assertThat(exception.getMessage(), containsString("unparseable"));
     }
 
     @Test
     void failsOnInvalidAccountSid(WireMockRuntimeInfo wireMock) {
-        RunContext runContext = runContextFactory.of(Map.of());
+        SendMessage task = task(wireMock)
+            .accountSID(Property.ofValue("not-an-account-sid"))
+            .body(Property.ofValue("test"))
+            .build();
 
+        assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
+    }
+
+    @Test
+    void failsWithoutBodyOrContentSid(WireMockRuntimeInfo wireMock) {
+        SendMessage task = task(wireMock).build();
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
+        assertThat(exception.getMessage(), containsString("either body or contentSid"));
+    }
+
+    @Test
+    void failsWithoutSender(WireMockRuntimeInfo wireMock) {
         SendMessage task = TestSendMessage.builder()
             .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("not-an-account-sid"))
+            .accountSID(Property.ofValue(ACCOUNT_SID))
             .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("MG00000000000000000000000000000000"))
             .to(Property.ofValue("+15555550100"))
             .body(Property.ofValue("test"))
             .build();
 
-        assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
+        var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
+        assertThat(exception.getMessage(), containsString("either from or messagingServiceSid"));
+    }
+
+    @Test
+    void failsWhenBothSendersSet(WireMockRuntimeInfo wireMock) {
+        SendMessage task = task(wireMock)
+            .from(Property.ofValue("+15005550006"))
+            .body(Property.ofValue("test"))
+            .build();
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
+        assertThat(exception.getMessage(), containsString("mutually exclusive"));
+    }
+
+    @Test
+    void failsWhenMessagingServiceSidPassedAsFrom(WireMockRuntimeInfo wireMock) {
+        SendMessage task = TestSendMessage.builder()
+            .base(wireMock.getHttpBaseUrl())
+            .accountSID(Property.ofValue(ACCOUNT_SID))
+            .authToken(Property.ofValue("test_auth_token"))
+            .from(Property.ofValue(MESSAGING_SERVICE_SID))
+            .to(Property.ofValue("+15555550100"))
+            .body(Property.ofValue("test"))
+            .build();
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
+        assertThat(exception.getMessage(), containsString("messagingServiceSid instead"));
+    }
+
+    private static TestSendMessage.TestSendMessageBuilder<?, ?> task(WireMockRuntimeInfo wireMock) {
+        return TestSendMessage.builder()
+            .base(wireMock.getHttpBaseUrl())
+            .accountSID(Property.ofValue(ACCOUNT_SID))
+            .authToken(Property.ofValue("test_auth_token"))
+            .messagingServiceSid(Property.ofValue(MESSAGING_SERVICE_SID))
+            .to(Property.ofValue("+15555550100"));
     }
 
     private static void stubMessagesApi(int status, String body) {
