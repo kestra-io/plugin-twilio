@@ -99,7 +99,7 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
     }
 
     // Subclasses add extra form parameters (e.g. MediaUrl, ContentSid). Default: none.
-    protected void additionalFormParameters(RunContext runContext, List<String> formParameters) throws Exception {
+    protected void additionalFormParameters(RunContext runContext, List<String> formParameters, Optional<String> renderedBody) throws Exception {
     }
 
     @Override
@@ -121,7 +121,7 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
         }
         rBody.ifPresent(value -> formParameters.add(formPair("Body", value)));
 
-        additionalFormParameters(runContext, formParameters);
+        additionalFormParameters(runContext, formParameters, rBody);
 
         var url = baseUrl() + "/2010-04-01/Accounts/" + rAccountSID + "/Messages.json";
         var authHeader = Base64.getEncoder().encodeToString(
@@ -149,7 +149,7 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
                 response = client.request(request, String.class);
             } catch (HttpClientResponseException e) {
                 throw new TwilioApiException(
-                    "Twilio Messages API returned HTTP " + e.getResponse().getStatus().getCode() + ": " + errorDetail(String.valueOf(e.getResponse().getBody()))
+                    "Twilio Messages API returned HTTP " + e.getResponse().getStatus().getCode() + ": " + errorDetail(bodyText(e.getResponse().getBody()))
                         + ". Check the request parameters (e.g. 'to'/'from' format) and Twilio account configuration.",
                     e
                 );
@@ -197,8 +197,19 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
         throw new IllegalArgumentException("either from or messagingServiceSid is required");
     }
 
-    protected Optional<String> renderedBody(RunContext runContext) throws Exception {
+    private Optional<String> renderedBody(RunContext runContext) throws Exception {
         return runContext.render(body).as(String.class).filter(value -> !value.isBlank());
+    }
+
+    // On the error path Kestra hands back HttpResponse<byte[]>, so this must decode rather than toString.
+    private static String bodyText(Object rawBody) {
+        if (rawBody == null) {
+            return null;
+        }
+        if (rawBody instanceof byte[] bytes) {
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+        return rawBody.toString();
     }
 
     private MessageResponse parseMessage(String responseBody, int statusCode) {

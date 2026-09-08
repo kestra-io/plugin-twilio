@@ -1,6 +1,7 @@
 package io.kestra.plugin.twilio.notify.rcs;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import io.kestra.core.models.annotations.Example;
@@ -103,14 +104,15 @@ public class SendMessage extends AbstractMessageSend {
     }
 
     @Override
-    protected void additionalFormParameters(RunContext runContext, List<String> formParameters) throws Exception {
+    protected void additionalFormParameters(RunContext runContext, List<String> formParameters, Optional<String> renderedBody) throws Exception {
         var rContentSid = runContext.render(contentSid).as(String.class).filter(sid -> !sid.isBlank());
 
-        if (rContentSid.isEmpty() && renderedBody(runContext).isEmpty()) {
+        if (rContentSid.isEmpty() && renderedBody.isEmpty()) {
             throw new IllegalArgumentException("either body or contentSid is required");
         }
         rContentSid.filter(sid -> !CONTENT_SID_PATTERN.matcher(sid).matches())
-            .ifPresent(sid -> {
+            .ifPresent(sid ->
+            {
                 throw new IllegalArgumentException("contentSid must be a valid Twilio Content SID (HX followed by 32 hex characters)");
             });
 

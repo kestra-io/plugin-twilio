@@ -115,7 +115,7 @@ class SendMessageTest {
     @Test
     void failsOnNon201(WireMockRuntimeInfo wireMock) {
         stubMessagesApi(400, """
-            {"code":21211,"message":"The 'To' number is not a valid phone number.","status":400}
+            {"code":21211,"message":"The 'To' number is not a valid phone number.","more_info":"https://www.twilio.com/docs/errors/21211","status":400}
             """);
 
         SendMessage task = task(wireMock)
@@ -123,7 +123,10 @@ class SendMessageTest {
             .body(Property.ofValue("test"))
             .build();
 
-        assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
+        var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
+        assertThat(exception.getMessage(), containsString("not a valid phone number"));
+        assertThat(exception.getMessage(), containsString("https://www.twilio.com/docs/errors/21211"));
+        assertThat(exception.getMessage(), not(containsString("[B@")));
     }
 
     @Test

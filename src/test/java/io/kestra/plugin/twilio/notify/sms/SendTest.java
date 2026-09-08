@@ -31,18 +31,20 @@ class SendTest {
     void sendSms(WireMockRuntimeInfo wireMock) throws Exception {
         stubFor(
             post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(aResponse()
-                    .withStatus(201)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody("""
-                        {
-                          "sid": "SM1234567890abcdef",
-                          "status": "queued",
-                          "from": "+15005550006",
-                          "to": "+15555550100",
-                          "body": "Hello from Kestra."
-                        }
-                        """))
+                .willReturn(
+                    aResponse()
+                        .withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                            {
+                              "sid": "SM1234567890abcdef",
+                              "status": "queued",
+                              "from": "+15005550006",
+                              "to": "+15555550100",
+                              "body": "Hello from Kestra."
+                            }
+                            """)
+                )
         );
 
         RunContext runContext = runContextFactory.of(Map.of());
@@ -61,22 +63,26 @@ class SendTest {
         assertThat(output.getSid(), is("SM1234567890abcdef"));
         assertThat(output.getStatus(), is("queued"));
 
-        verify(postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-            .withRequestBody(containing("From=%2B15005550006"))
-            .withRequestBody(containing("To=%2B15555550100"))
-            .withRequestBody(containing("Body=Hello+from+Kestra.")));
+        verify(
+            postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
+                .withRequestBody(containing("From=%2B15005550006"))
+                .withRequestBody(containing("To=%2B15555550100"))
+                .withRequestBody(containing("Body=Hello+from+Kestra."))
+        );
     }
 
     @Test
     void failsOnNon201(WireMockRuntimeInfo wireMock) throws Exception {
         stubFor(
             post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(aResponse()
-                    .withStatus(400)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody("""
-                        {"code":21211,"message":"The 'To' number is not a valid phone number.","status":400}
-                        """))
+                .willReturn(
+                    aResponse()
+                        .withStatus(400)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                            {"code":21211,"message":"The 'To' number is not a valid phone number.","status":400}
+                            """)
+                )
         );
 
         RunContext runContext = runContextFactory.of(Map.of());
@@ -90,7 +96,9 @@ class SendTest {
             .body(Property.ofValue("test"))
             .build();
 
-        assertThrows(RuntimeException.class, () -> task.run(runContext));
+        var exception = assertThrows(RuntimeException.class, () -> task.run(runContext));
+        assertThat(exception.getMessage(), containsString("not a valid phone number"));
+        assertThat(exception.getMessage(), not(containsString("[B@")));
     }
 
     @SuperBuilder
