@@ -42,7 +42,7 @@ class SendMessageIT {
 
         SendMessage.Output output = task.run(runContext);
 
-        assertThat(output.getMessageSid(), startsWith("SM"));
+        assertThat(output.getSid(), startsWith("SM"));
         assertThat(output.getStatus(), is(not(emptyOrNullString())));
     }
 

@@ -15,11 +15,13 @@ import io.kestra.core.http.client.HttpClient;
 import io.kestra.core.http.client.HttpClientResponseException;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,16 +29,16 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 /**
- * Shared plumbing for tasks posting to the Twilio Messages API
+ * Base for tasks posting to the Twilio Messages API
  * ({@code POST /2010-04-01/Accounts/{AccountSid}/Messages.json}), whatever the channel.
- * Subclasses own their own {@code Output} shape and add channel-specific form parameters.
+ * Subclasses add channel-specific form parameters via {@link #additionalFormParameters}.
  */
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public abstract class AbstractMessagesApiTask extends AbstractTwilioConnection {
+public abstract class AbstractMessageSend extends AbstractTwilioConnection implements RunnableTask<AbstractMessageSend.Output> {
 
     private static final String DEFAULT_BASE_URL = "https://api.twilio.com";
     private static final String ACCOUNT_SID_PATTERN = "AC[0-9a-fA-F]{32}";
@@ -90,7 +92,8 @@ public abstract class AbstractMessagesApiTask extends AbstractTwilioConnection {
     protected void additionalFormParameters(RunContext runContext, List<String> formParameters) throws Exception {
     }
 
-    protected MessageResponse sendMessage(RunContext runContext) throws Exception {
+    @Override
+    public Output run(RunContext runContext) throws Exception {
         var rAccountSID = runContext.render(accountSID).as(String.class).orElseThrow(() -> new IllegalArgumentException("accountSID is required"));
         if (!rAccountSID.matches(ACCOUNT_SID_PATTERN)) {
             throw new IllegalArgumentException("accountSID must be a valid Twilio Account SID (AC followed by 32 hex characters)");
@@ -118,13 +121,11 @@ public abstract class AbstractMessagesApiTask extends AbstractTwilioConnection {
                 .addHeader("Authorization", "Basic " + authHeader)
                 .uri(URI.create(url))
                 .method("POST")
-                .body(
-                    HttpRequest.StringRequestBody.builder()
-                        .contentType("application/x-www-form-urlencoded")
-                        .charset(StandardCharsets.UTF_8)
-                        .content(String.join("&", formParameters))
-                        .build()
-                )
+                .body(HttpRequest.StringRequestBody.builder()
+                    .contentType("application/x-www-form-urlencoded")
+                    .charset(StandardCharsets.UTF_8)
+                    .content(String.join("&", formParameters))
+                    .build())
                 .build();
 
             HttpResponse<String> response;
@@ -147,7 +148,10 @@ public abstract class AbstractMessagesApiTask extends AbstractTwilioConnection {
             var parsed = JacksonMapper.ofJson().readValue(response.getBody(), MessageResponse.class);
             runContext.logger().info("Message sent, sid={} status={}", parsed.getSid(), parsed.getStatus());
 
-            return parsed;
+            return Output.builder()
+                .sid(parsed.getSid())
+                .status(parsed.getStatus())
+                .build();
         }
     }
 
@@ -155,9 +159,19 @@ public abstract class AbstractMessagesApiTask extends AbstractTwilioConnection {
         return URLEncoder.encode(key, StandardCharsets.UTF_8) + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
+    @Builder
+    @Getter
+    public static class Output implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "Twilio message SID", description = "Unique identifier assigned by Twilio to the sent message")
+        private final String sid;
+
+        @Schema(title = "Message status", description = "Delivery status returned by Twilio, e.g. queued, sent, delivered")
+        private final String status;
+    }
+
     @Getter
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class MessageResponse {
+    private static class MessageResponse {
         private String sid;
         private String status;
     }

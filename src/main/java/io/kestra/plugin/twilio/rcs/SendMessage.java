@@ -6,12 +6,10 @@ import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.twilio.AbstractMessagesApiTask;
+import io.kestra.plugin.twilio.AbstractMessageSend;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -82,12 +80,12 @@ import lombok.experimental.SuperBuilder;
 
                   - id: log_result
                     type: io.kestra.plugin.core.log.Log
-                    message: "Message sent. SID: {{ outputs.send_message.messageSid }}, status: {{ outputs.send_message.status }}"
+                    message: "Message sent. SID: {{ outputs.send_message.sid }}, status: {{ outputs.send_message.status }}"
                 """
         ),
     }
 )
-public class SendMessage extends AbstractMessagesApiTask implements RunnableTask<SendMessage.Output> {
+public class SendMessage extends AbstractMessageSend {
 
     @Schema(
         title = "Content template SID",
@@ -101,25 +99,5 @@ public class SendMessage extends AbstractMessagesApiTask implements RunnableTask
         runContext.render(contentSid).as(String.class)
             .filter(sid -> !sid.isBlank())
             .ifPresent(sid -> formParameters.add(formPair("ContentSid", sid)));
-    }
-
-    @Override
-    public Output run(RunContext runContext) throws Exception {
-        var message = sendMessage(runContext);
-
-        return Output.builder()
-            .messageSid(message.getSid())
-            .status(message.getStatus())
-            .build();
-    }
-
-    @Builder
-    @Getter
-    public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "Twilio message SID", description = "Unique identifier assigned by Twilio to the sent message")
-        private final String messageSid;
-
-        @Schema(title = "Message status", description = "Delivery status returned by Twilio, e.g. queued, sent, delivered")
-        private final String status;
     }
 }

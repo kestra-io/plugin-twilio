@@ -2,7 +2,7 @@ package io.kestra.plugin.twilio.notify.sms;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.plugin.twilio.notify.AbstractMessageSend;
+import io.kestra.plugin.twilio.AbstractMessageSend;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;

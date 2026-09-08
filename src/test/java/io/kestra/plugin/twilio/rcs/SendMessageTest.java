@@ -54,7 +54,7 @@ class SendMessageTest {
 
         SendMessage.Output output = task.run(runContext);
 
-        assertThat(output.getMessageSid(), is("SM1234567890abcdef"));
+        assertThat(output.getSid(), is("SM1234567890abcdef"));
         assertThat(output.getStatus(), is("queued"));
 
         verify(
@@ -86,7 +86,7 @@ class SendMessageTest {
 
         SendMessage.Output output = task.run(runContext);
 
-        assertThat(output.getMessageSid(), is("SMcontent0000000000"));
+        assertThat(output.getSid(), is("SMcontent0000000000"));
         assertThat(output.getStatus(), is("accepted"));
 
         verify(
@@ -123,7 +123,7 @@ class SendMessageTest {
 
         SendMessage.Output output = task.run(runContext);
 
-        assertThat(output.getMessageSid(), is("SMfallback000000000"));
+        assertThat(output.getSid(), is("SMfallback000000000"));
         assertThat(output.getStatus(), is("queued"));
     }
 
