@@ -1,6 +1,7 @@
 package io.kestra.plugin.twilio.rcs;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -86,6 +87,8 @@ import lombok.experimental.SuperBuilder;
 )
 public class SendMessage extends AbstractMessageSend {
 
+    private static final Pattern CONTENT_SID_PATTERN = Pattern.compile("HX[0-9a-fA-F]{32}");
+
     @Schema(
         title = "Content template SID",
         description = "SID of a Twilio Content API template (`HX...`) to render as a rich RCS message. Either this or `body` must be set"
@@ -106,6 +109,10 @@ public class SendMessage extends AbstractMessageSend {
         if (rContentSid.isEmpty() && renderedBody(runContext).isEmpty()) {
             throw new IllegalArgumentException("either body or contentSid is required");
         }
+        rContentSid.filter(sid -> !CONTENT_SID_PATTERN.matcher(sid).matches())
+            .ifPresent(sid -> {
+                throw new IllegalArgumentException("contentSid must be a valid Twilio Content SID (HX followed by 32 hex characters)");
+            });
 
         rContentSid.ifPresent(sid -> formParameters.add(formPair("ContentSid", sid)));
     }

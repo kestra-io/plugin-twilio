@@ -31,7 +31,6 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
-// Base for tasks posting to the Twilio Messages API, whatever the channel.
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -41,7 +40,7 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
 
     private static final String DEFAULT_BASE_URL = "https://api.twilio.com";
     private static final Pattern ACCOUNT_SID_PATTERN = Pattern.compile("AC[0-9a-fA-F]{32}");
-    private static final String MESSAGING_SERVICE_SID_PREFIX = "MG";
+    private static final Pattern MESSAGING_SERVICE_SID_PATTERN = Pattern.compile("MG[0-9a-fA-F]{32}");
 
     @NotNull
     @Schema(
@@ -149,16 +148,18 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
             try {
                 response = client.request(request, String.class);
             } catch (HttpClientResponseException e) {
-                throw new RuntimeException(
-                    "Twilio Messages API returned HTTP " + e.getResponse().getStatus().getCode() + ": " + e.getResponse().getBody(),
+                throw new TwilioApiException(
+                    "Twilio Messages API returned HTTP " + e.getResponse().getStatus().getCode() + ": " + errorDetail(String.valueOf(e.getResponse().getBody()))
+                        + ". Check the request parameters (e.g. 'to'/'from' format) and Twilio account configuration.",
                     e
                 );
             }
 
             var statusCode = response.getStatus().getCode();
             if (statusCode != 201) {
-                throw new RuntimeException(
-                    "Twilio Messages API returned HTTP " + statusCode + ": " + response.getBody()
+                throw new TwilioApiException(
+                    "Twilio Messages API returned HTTP " + statusCode + ": " + errorDetail(response.getBody())
+                        + ". Check the request parameters (e.g. 'to'/'from' format) and Twilio account configuration."
                 );
             }
 
@@ -187,7 +188,7 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
             return formPair("MessagingServiceSid", rMessagingServiceSid.get());
         }
         if (rFrom.isPresent()) {
-            if (rFrom.get().startsWith(MESSAGING_SERVICE_SID_PREFIX)) {
+            if (MESSAGING_SERVICE_SID_PATTERN.matcher(rFrom.get()).matches()) {
                 throw new IllegalArgumentException("from looks like a Messaging Service SID, set it on messagingServiceSid instead");
             }
             return formPair("From", rFrom.get());
@@ -202,18 +203,54 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
 
     private MessageResponse parseMessage(String responseBody, int statusCode) {
         if (responseBody == null || responseBody.isBlank()) {
-            throw new RuntimeException("Twilio Messages API returned HTTP " + statusCode + " with an empty body");
+            throw new TwilioApiException(
+                "Twilio Messages API returned HTTP " + statusCode + " with an empty body. This may indicate a transient Twilio API issue; retry the task."
+            );
         }
 
         try {
             return JacksonMapper.ofJson().readValue(responseBody, MessageResponse.class);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Twilio Messages API returned an unparseable body: " + responseBody, e);
+            throw new TwilioApiException(
+                "Twilio Messages API returned an unparseable body: " + responseBody + ". Check the Twilio status page or retry the task.",
+                e
+            );
         }
+    }
+
+    /**
+     * Extracts the Twilio error {@code message}/{@code more_info} fields from an error response body,
+     * falling back to the raw body when it isn't the expected Twilio error JSON shape.
+     */
+    private static String errorDetail(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return "(empty body)";
+        }
+        try {
+            var node = JacksonMapper.ofJson().readTree(responseBody);
+            var message = node.path("message").asText(null);
+            if (message != null) {
+                var moreInfo = node.path("more_info").asText(null);
+                return moreInfo != null ? message + " (see " + moreInfo + ")" : message;
+            }
+        } catch (JsonProcessingException ignored) {
+            // Not JSON, fall through to the raw body.
+        }
+        return responseBody;
     }
 
     protected static String formPair(String key, String value) {
         return URLEncoder.encode(key, StandardCharsets.UTF_8) + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private static class TwilioApiException extends RuntimeException {
+        TwilioApiException(String message) {
+            super(message);
+        }
+
+        TwilioApiException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 
     @Builder

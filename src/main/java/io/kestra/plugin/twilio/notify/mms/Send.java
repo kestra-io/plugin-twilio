@@ -97,6 +97,9 @@ public class Send extends AbstractMessageSend {
         if (rMediaUrls.isEmpty()) {
             throw new IllegalArgumentException("mediaUrls must contain at least one URL");
         }
+        if (rMediaUrls.size() > 10) {
+            throw new IllegalArgumentException("mediaUrls must not contain more than 10 URLs, Twilio accepts at most 10 per message");
+        }
 
         rMediaUrls.forEach(url -> formParameters.add(formPair("MediaUrl", url)));
     }
