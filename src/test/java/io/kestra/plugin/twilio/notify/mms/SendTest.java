@@ -181,8 +181,11 @@ class SendTest {
         }
 
         @Override
-        protected com.twilio.http.HttpClient httpClient() {
-            return new io.kestra.plugin.twilio.notify.RebasingHttpClient(base);
+        protected com.twilio.http.TwilioRestClient restClient(String accountSid, String authToken) {
+            return new com.twilio.http.TwilioRestClient.Builder(accountSid, authToken)
+                .accountSid(accountSid)
+                .httpClient(new io.kestra.plugin.twilio.notify.RebasingHttpClient(base))
+                .build();
         }
     }
 }

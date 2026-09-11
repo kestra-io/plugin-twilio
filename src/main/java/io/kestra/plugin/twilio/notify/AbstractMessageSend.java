@@ -5,7 +5,6 @@ import java.util.regex.Pattern;
 
 import com.twilio.exception.ApiException;
 import com.twilio.exception.TwilioException;
-import com.twilio.http.NetworkHttpClient;
 import com.twilio.http.TwilioRestClient;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.rest.api.v2010.account.MessageCreator;
@@ -180,16 +179,11 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
     /**
      * the existing test seam working and lets a Twilio-compatible proxy be used.
      */
-    private TwilioRestClient restClient(String accountSid, String authToken) {
+    /** Overridable so tests can point the SDK at a stub, it has no base URL setting of its own. */
+    protected TwilioRestClient restClient(String accountSid, String authToken) {
         return new TwilioRestClient.Builder(accountSid, authToken)
             .accountSid(accountSid)
-            .httpClient(this.httpClient())
             .build();
-    }
-
-    /** Overridable so tests can point the SDK at a stub, the SDK itself has no base URL setting. */
-    protected com.twilio.http.HttpClient httpClient() {
-        return new NetworkHttpClient();
     }
 
     private Optional<String> renderedBody(RunContext runContext) throws Exception {
