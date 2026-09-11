@@ -4,114 +4,58 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
-import com.github.tomakehurst.wiremock.junit5.WireMockTest;
-
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 
 import jakarta.inject.Inject;
-import lombok.experimental.SuperBuilder;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static io.kestra.plugin.twilio.notify.TwilioStub.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
-@WireMockTest
 class SendTest {
-
     @Inject
     private RunContextFactory runContextFactory;
 
-    @Test
-    void sendSms(WireMockRuntimeInfo wireMock) throws Exception {
-        stubFor(
-            post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(
-                    aResponse()
-                        .withStatus(201)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("""
-                            {
-                              "sid": "SM1234567890abcdef",
-                              "status": "queued",
-                              "from": "+15005550006",
-                              "to": "+15555550100",
-                              "body": "Hello from Kestra."
-                            }
-                            """)
-                )
-        );
-
-        RunContext runContext = runContextFactory.of(Map.of());
-
-        Send task = TestSend.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
+    private static Send task() {
+        return Send.builder()
+            .accountSID(Property.ofValue(ACCOUNT_SID))
+            .authToken(Property.ofValue(AUTH_TOKEN))
             .from(Property.ofValue("+15005550006"))
             .to(Property.ofValue("+15555550100"))
             .body(Property.ofValue("Hello from Kestra."))
             .build();
+    }
 
-        Send.Output output = task.run(runContext);
+    @Test
+    void sendSms() throws Exception {
+        var http = respondsWith(201, """
+            {"sid":"SM1234567890abcdef","status":"queued"}
+            """);
+
+        var output = sending(task(), http).run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("SM1234567890abcdef"));
         assertThat(output.getStatus(), is("queued"));
 
-        verify(
-            postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .withRequestBody(containing("From=%2B15005550006"))
-                .withRequestBody(containing("To=%2B15555550100"))
-                .withRequestBody(containing("Body=Hello+from+Kestra."))
-        );
+        var params = sentParams(http);
+        assertThat(params.get("From"), contains(equalTo("+15005550006")));
+        assertThat(params.get("To"), contains(equalTo("+15555550100")));
+        assertThat(params.get("Body"), contains(equalTo("Hello from Kestra.")));
     }
 
     @Test
-    void failsOnNon201(WireMockRuntimeInfo wireMock) throws Exception {
-        stubFor(
-            post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(
-                    aResponse()
-                        .withStatus(400)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("""
-                            {"code":21211,"message":"The 'To' number is not a valid phone number.","status":400}
-                            """)
-                )
-        );
+    void failsOnNon201() {
+        var task = sending(task(), respondsWith(400, """
+            {"code":21211,"message":"The 'To' number is not a valid phone number.","status":400}
+            """));
 
-        RunContext runContext = runContextFactory.of(Map.of());
-
-        Send task = TestSend.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("+15005550006"))
-            .to(Property.ofValue("invalid"))
-            .body(Property.ofValue("test"))
-            .build();
-
-        var exception = assertThrows(RuntimeException.class, () -> task.run(runContext));
+        var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("not a valid phone number"));
+        // the body must never reach the user as a raw byte array
         assertThat(exception.getMessage(), not(containsString("[B@")));
-    }
-
-    @SuperBuilder
-    static class TestSend extends Send {
-        private final String base;
-
-        TestSend(String base) {
-            this.base = base;
-        }
-
-        @Override
-        protected String baseUrl() {
-            return base;
-        }
     }
 }
