@@ -176,9 +176,6 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
         return new MessageCreator(to, new PhoneNumber(sender), rBody);
     }
 
-    /**
-     * the existing test seam working and lets a Twilio-compatible proxy be used.
-     */
     /** Public so tests can stub it, the SDK has no base URL setting of its own. */
     public TwilioRestClient restClient(String accountSid, String authToken) {
         return new TwilioRestClient.Builder(accountSid, authToken)
