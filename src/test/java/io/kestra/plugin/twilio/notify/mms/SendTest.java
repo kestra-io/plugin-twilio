@@ -4,188 +4,123 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
-import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
-import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+import com.twilio.http.Request;
+import com.twilio.http.Response;
+import com.twilio.http.TwilioRestClient;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 
 import jakarta.inject.Inject;
-import lombok.experimental.SuperBuilder;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 @KestraTest
-@WireMockTest
 class SendTest {
+    private static final String ACCOUNT_SID = "AC00000000000000000000000000000000";
 
     @Inject
     private RunContextFactory runContextFactory;
 
-    @Test
-    void sendMms(WireMockRuntimeInfo wireMock) throws Exception {
-        stubFor(
-            post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(
-                    aResponse()
-                        .withStatus(201)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("""
-                            {
-                              "sid": "MM1234567890abcdef",
-                              "status": "queued",
-                              "from": "+15005550006",
-                              "to": "+15555550100",
-                              "body": "Here is your report.",
-                              "num_media": "1"
-                            }
-                            """)
-                )
-        );
+    /** A real client with only the transport stubbed, so the SDK still builds and parses everything itself. */
+    private static com.twilio.http.HttpClient transportReturning(String body, int status) {
+        var http = mock(com.twilio.http.HttpClient.class);
+        when(http.reliableRequest(any())).thenReturn(new Response(body, status));
 
-        RunContext runContext = runContextFactory.of(Map.of());
+        return http;
+    }
 
-        Send task = TestSend.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
+    private static Send taskOn(com.twilio.http.HttpClient http, List<String> mediaUrls, String body) {
+        var client = new TwilioRestClient.Builder(ACCOUNT_SID, "test_auth_token")
+            .accountSid(ACCOUNT_SID)
+            .httpClient(http)
+            .build();
+
+        Send task = Send.builder()
+            .accountSID(Property.ofValue(ACCOUNT_SID))
             .authToken(Property.ofValue("test_auth_token"))
             .from(Property.ofValue("+15005550006"))
             .to(Property.ofValue("+15555550100"))
-            .body(Property.ofValue("Here is your report."))
-            .mediaUrls(Property.ofValue(List.of("https://example.com/report.png")))
+            .body(Property.ofValue(body))
+            .mediaUrls(Property.ofValue(mediaUrls))
             .build();
 
-        Send.Output output = task.run(runContext);
+        Send spied = spy(task);
+        doReturn(client).when(spied).restClient(anyString(), anyString());
+
+        return spied;
+    }
+
+    @Test
+    void sendMms() throws Exception {
+        var http = transportReturning("{\"sid\":\"MM1234567890abcdef\",\"status\":\"queued\"}", 201);
+
+        var output = taskOn(http, List.of("https://example.com/report.png"), "Here is your report.").run(
+            runContextFactory.of(Map.of())
+        );
 
         assertThat(output.getSid(), is("MM1234567890abcdef"));
         assertThat(output.getStatus(), is("queued"));
 
-        // single encoded value, not a bracketed list
-        verify(
-            postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .withRequestBody(containing("From="))
-                .withRequestBody(containing("To="))
-                .withRequestBody(containing("Body="))
-                .withRequestBody(containing("MediaUrl=https%3A%2F%2Fexample.com%2Freport.png"))
-                .withRequestBody(notMatching(".*MediaUrl=%5B.*"))
-        );
+        var sent = ArgumentCaptor.forClass(Request.class);
+        verify(http).reliableRequest(sent.capture());
+        var params = sent.getValue().getPostParams();
+
+        assertThat(params, hasKey("From"));
+        assertThat(params, hasKey("To"));
+        assertThat(params, hasKey("Body"));
+        // a single value, not one bracketed list
+        assertThat(params.get("MediaUrl"), contains(equalTo("https://example.com/report.png")));
     }
 
     @Test
-    void sendMmsMultipleMediaUrls(WireMockRuntimeInfo wireMock) throws Exception {
-        stubFor(
-            post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(
-                    aResponse()
-                        .withStatus(201)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("""
-                            {
-                              "sid": "MM_multi_media",
-                              "status": "queued",
-                              "num_media": "2"
-                            }
-                            """)
-                )
-        );
+    void sendMmsMultipleMediaUrls() throws Exception {
+        var http = transportReturning("{\"sid\":\"MM_multi_media\",\"status\":\"queued\"}", 201);
 
-        RunContext runContext = runContextFactory.of(Map.of());
-
-        Send task = TestSend.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("+15005550006"))
-            .to(Property.ofValue("+15555550100"))
-            .body(Property.ofValue("Two attachments."))
-            .mediaUrls(
-                Property.ofValue(
-                    List.of(
-                        "https://example.com/image1.png",
-                        "https://example.com/image2.png"
-                    )
-                )
-            )
-            .build();
-
-        Send.Output output = task.run(runContext);
+        var output = taskOn(
+            http,
+            List.of("https://example.com/image1.png", "https://example.com/image2.png"),
+            "Two attachments."
+        ).run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("MM_multi_media"));
-        assertThat(output.getStatus(), is("queued"));
+
+        var sent = ArgumentCaptor.forClass(Request.class);
+        verify(http).reliableRequest(sent.capture());
 
         // each URL is its own repeated MediaUrl param
-        verify(
-            postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .withRequestBody(containing("MediaUrl=https%3A%2F%2Fexample.com%2Fimage1.png"))
-                .withRequestBody(containing("MediaUrl=https%3A%2F%2Fexample.com%2Fimage2.png"))
+        assertThat(
+            sent.getValue().getPostParams().get("MediaUrl"),
+            contains(equalTo("https://example.com/image1.png"), equalTo("https://example.com/image2.png"))
         );
     }
 
     @Test
     void failsOnEmptyMediaUrls() {
-        RunContext runContext = runContextFactory.of(Map.of());
+        var task = taskOn(transportReturning("{}", 201), List.of(), "no media");
 
-        Send task = Send.builder()
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("+15005550006"))
-            .to(Property.ofValue("+15555550100"))
-            .body(Property.ofValue("no media"))
-            .mediaUrls(Property.ofValue(List.of()))
-            .build();
-
-        assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
+        var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
+        assertThat(exception.getMessage(), containsString("at least one URL"));
     }
 
     @Test
-    void failsOnNon201(WireMockRuntimeInfo wireMock) throws Exception {
-        stubFor(
-            post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(
-                    aResponse()
-                        .withStatus(400)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("""
-                            {"code":21610,"message":"Attempt to send to unsubscribed recipient.","status":400}
-                            """)
-                )
+    void failsOnNon201() {
+        var task = taskOn(
+            transportReturning("{\"code\":21620,\"message\":\"Invalid media URL\",\"status\":400}", 400),
+            List.of("https://example.com/report.png"),
+            "bad"
         );
 
-        RunContext runContext = runContextFactory.of(Map.of());
-
-        Send task = TestSend.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("+15005550006"))
-            .to(Property.ofValue("+15555550100"))
-            .body(Property.ofValue("test"))
-            .mediaUrls(Property.ofValue(List.of("https://example.com/img.png")))
-            .build();
-
-        assertThrows(RuntimeException.class, () -> task.run(runContext));
-    }
-
-    @SuperBuilder
-    static class TestSend extends Send {
-        private final String base;
-
-        TestSend(String base) {
-            this.base = base;
-        }
-
-        @Override
-        protected com.twilio.http.TwilioRestClient restClient(String accountSid, String authToken) {
-            return new com.twilio.http.TwilioRestClient.Builder(accountSid, authToken)
-                .accountSid(accountSid)
-                .httpClient(new io.kestra.plugin.twilio.notify.RebasingHttpClient(base))
-                .build();
-        }
+        var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
+        assertThat(exception.getMessage(), containsString("Invalid media URL"));
+        assertThat(exception.getMessage(), not(containsString("[B@")));
     }
 }

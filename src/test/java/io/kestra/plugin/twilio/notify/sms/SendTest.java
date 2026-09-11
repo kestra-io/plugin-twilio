@@ -3,118 +3,86 @@ package io.kestra.plugin.twilio.notify.sms;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
-import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
-import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+import com.twilio.http.Request;
+import com.twilio.http.Response;
+import com.twilio.http.TwilioRestClient;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 
 import jakarta.inject.Inject;
-import lombok.experimental.SuperBuilder;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 @KestraTest
-@WireMockTest
 class SendTest {
+    private static final String ACCOUNT_SID = "AC00000000000000000000000000000000";
 
     @Inject
     private RunContextFactory runContextFactory;
 
-    @Test
-    void sendSms(WireMockRuntimeInfo wireMock) throws Exception {
-        stubFor(
-            post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(
-                    aResponse()
-                        .withStatus(201)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("""
-                            {
-                              "sid": "SM1234567890abcdef",
-                              "status": "queued",
-                              "from": "+15005550006",
-                              "to": "+15555550100",
-                              "body": "Hello from Kestra."
-                            }
-                            """)
-                )
-        );
+    /** A real client with a stubbed transport, so the SDK still builds and parses everything itself. */
+    private static TwilioRestClient clientReturning(String body, int status) {
+        var http = mock(com.twilio.http.HttpClient.class);
+        when(http.reliableRequest(any())).thenReturn(new Response(body, status));
 
-        RunContext runContext = runContextFactory.of(Map.of());
+        return new TwilioRestClient.Builder(ACCOUNT_SID, "test_auth_token")
+            .accountSid(ACCOUNT_SID)
+            .httpClient(http)
+            .build();
+    }
 
-        Send task = TestSend.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
+    private static Send taskReturning(TwilioRestClient client) {
+        Send task = Send.builder()
+            .accountSID(Property.ofValue(ACCOUNT_SID))
             .authToken(Property.ofValue("test_auth_token"))
             .from(Property.ofValue("+15005550006"))
             .to(Property.ofValue("+15555550100"))
-            .body(Property.ofValue("Hello from Kestra."))
-            .build();
-
-        Send.Output output = task.run(runContext);
-
-        assertThat(output.getSid(), is("SM1234567890abcdef"));
-        assertThat(output.getStatus(), is("queued"));
-
-        verify(
-            postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .withRequestBody(containing("From=%2B15005550006"))
-                .withRequestBody(containing("To=%2B15555550100"))
-                .withRequestBody(containing("Body=Hello+from+Kestra."))
-        );
-    }
-
-    @Test
-    void failsOnNon201(WireMockRuntimeInfo wireMock) throws Exception {
-        stubFor(
-            post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(
-                    aResponse()
-                        .withStatus(400)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("""
-                            {"code":21211,"message":"The 'To' number is not a valid phone number.","status":400}
-                            """)
-                )
-        );
-
-        RunContext runContext = runContextFactory.of(Map.of());
-
-        Send task = TestSend.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("+15005550006"))
-            .to(Property.ofValue("invalid"))
             .body(Property.ofValue("test"))
             .build();
 
-        var exception = assertThrows(RuntimeException.class, () -> task.run(runContext));
-        assertThat(exception.getMessage(), containsString("not a valid phone number"));
-        assertThat(exception.getMessage(), not(containsString("[B@")));
+        Send spied = spy(task);
+        doReturn(client).when(spied).restClient(anyString(), anyString());
+
+        return spied;
     }
 
-    @SuperBuilder
-    static class TestSend extends Send {
-        private final String base;
+    @Test
+    void sendSms() throws Exception {
+        var http = mock(com.twilio.http.HttpClient.class);
+        when(http.reliableRequest(any())).thenReturn(
+            new Response("{\"sid\":\"SM1234567890abcdef\",\"status\":\"queued\"}", 201)
+        );
+        var client = new TwilioRestClient.Builder(ACCOUNT_SID, "test_auth_token")
+            .accountSid(ACCOUNT_SID).httpClient(http).build();
 
-        TestSend(String base) {
-            this.base = base;
-        }
+        var output = taskReturning(client).run(runContextFactory.of(Map.of()));
 
-        @Override
-        protected com.twilio.http.TwilioRestClient restClient(String accountSid, String authToken) {
-            return new com.twilio.http.TwilioRestClient.Builder(accountSid, authToken)
-                .accountSid(accountSid)
-                .httpClient(new io.kestra.plugin.twilio.notify.RebasingHttpClient(base))
-                .build();
-        }
+        var sent = ArgumentCaptor.forClass(Request.class);
+        verify(http).reliableRequest(sent.capture());
+        assertThat(sent.getValue().getPostParams().get("To"), hasItem("+15555550100"));
+        assertThat(sent.getValue().getPostParams().get("Body"), hasItem("test"));
+
+        assertThat(output.getSid(), is("SM1234567890abcdef"));
+        assertThat(output.getStatus(), is("queued"));
+    }
+
+    @Test
+    void failsOnNon201() {
+        var task = taskReturning(clientReturning(
+            "{\"code\":21211,\"message\":\"The 'To' number is not a valid phone number.\",\"status\":400}", 400
+        ));
+
+        var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
+        assertThat(exception.getMessage(), containsString("not a valid phone number"));
+        assertThat(exception.getMessage(), not(containsString("[B@")));
     }
 }

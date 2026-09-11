@@ -3,125 +3,133 @@ package io.kestra.plugin.twilio.notify.rcs;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
-import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
-import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+import com.twilio.http.Request;
+import com.twilio.http.Response;
+import com.twilio.http.TwilioRestClient;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 
 import jakarta.inject.Inject;
-import lombok.experimental.SuperBuilder;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 @KestraTest
-@WireMockTest
 class SendMessageTest {
-
-    private static final String MESSAGES_PATH = "/2010-04-01/Accounts/.*/Messages.json";
     private static final String ACCOUNT_SID = "AC00000000000000000000000000000000";
     private static final String MESSAGING_SERVICE_SID = "MG00000000000000000000000000000000";
+    private static final String CONTENT_SID = "HX00000000000000000000000000000000";
 
     @Inject
     private RunContextFactory runContextFactory;
 
-    @Test
-    void sendRcs(WireMockRuntimeInfo wireMock) throws Exception {
-        stubMessagesApi(201, """
-            {
-              "sid": "SM1234567890abcdef",
-              "status": "queued",
-              "messaging_service_sid": "MG00000000000000000000000000000000",
-              "to": "+15555550100",
-              "body": "Hello from Kestra."
-            }
-            """);
+    private static com.twilio.http.HttpClient transport(int status, String body) {
+        var http = mock(com.twilio.http.HttpClient.class);
+        when(http.reliableRequest(any())).thenReturn(new Response(body, status));
 
-        SendMessage task = task(wireMock)
-            .body(Property.ofValue("Hello from Kestra."))
+        return http;
+    }
+
+    /** A real client with only the transport stubbed, so the SDK still builds and parses everything itself. */
+    private static SendMessage on(com.twilio.http.HttpClient http, SendMessage task) {
+        var client = new TwilioRestClient.Builder(ACCOUNT_SID, "test_auth_token")
+            .accountSid(ACCOUNT_SID)
+            .httpClient(http)
             .build();
 
-        SendMessage.Output output = task.run(runContextFactory.of(Map.of()));
+        SendMessage spied = spy(task);
+        doReturn(client).when(spied).restClient(anyString(), anyString());
+
+        return spied;
+    }
+
+    private static SendMessage.SendMessageBuilder<?, ?> task() {
+        return SendMessage.builder()
+            .accountSID(Property.ofValue(ACCOUNT_SID))
+            .authToken(Property.ofValue("test_auth_token"))
+            .messagingServiceSid(Property.ofValue(MESSAGING_SERVICE_SID))
+            .to(Property.ofValue("+15555550100"));
+    }
+
+    private static Map<String, java.util.List<String>> sentParams(com.twilio.http.HttpClient http) {
+        var sent = ArgumentCaptor.forClass(Request.class);
+        verify(http).reliableRequest(sent.capture());
+
+        return sent.getValue().getPostParams();
+    }
+
+    @Test
+    void sendRcs() throws Exception {
+        var http = transport(201, """
+            {"sid":"SM1234567890abcdef","status":"queued"}
+            """);
+
+        var output = on(http, task().body(Property.ofValue("Hello from Kestra.")).build())
+            .run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("SM1234567890abcdef"));
         assertThat(output.getStatus(), is("queued"));
 
-        verify(
-            postRequestedFor(urlPathMatching(MESSAGES_PATH))
-                .withRequestBody(containing("MessagingServiceSid=" + MESSAGING_SERVICE_SID))
-                .withRequestBody(containing("To=%2B15555550100"))
-                .withRequestBody(containing("Body=Hello+from+Kestra."))
-                .withRequestBody(notMatching(".*ContentSid.*"))
-        );
+        var params = sentParams(http);
+        assertThat(params.get("MessagingServiceSid"), contains(equalTo(MESSAGING_SERVICE_SID)));
+        assertThat(params.get("To"), contains(equalTo("+15555550100")));
+        assertThat(params.get("Body"), contains(equalTo("Hello from Kestra.")));
+        assertThat(params, not(hasKey("ContentSid")));
     }
 
     @Test
-    void sendRcsWithContentTemplate(WireMockRuntimeInfo wireMock) throws Exception {
-        stubMessagesApi(201, """
-            {"sid": "SMcontent0000000000", "status": "accepted"}
+    void sendRcsWithContentTemplate() throws Exception {
+        var http = transport(201, """
+            {"sid":"SMcontent0000000000","status":"accepted"}
             """);
 
-        SendMessage task = task(wireMock)
-            .contentSid(Property.ofValue("HX00000000000000000000000000000000"))
-            .build();
-
-        SendMessage.Output output = task.run(runContextFactory.of(Map.of()));
+        var output = on(http, task().contentSid(Property.ofValue(CONTENT_SID)).build())
+            .run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("SMcontent0000000000"));
         assertThat(output.getStatus(), is("accepted"));
 
-        verify(
-            postRequestedFor(urlPathMatching(MESSAGES_PATH))
-                .withRequestBody(containing("ContentSid=HX00000000000000000000000000000000"))
-                .withRequestBody(notMatching(".*Body=.*"))
-        );
+        var params = sentParams(http);
+        assertThat(params.get("ContentSid"), contains(equalTo(CONTENT_SID)));
+        // no empty Body may be sent, a content template relies on its absence
+        assertThat(params, not(hasKey("Body")));
     }
 
     /**
-     * Twilio decides RCS versus SMS server side, so the contract this pins is that the task sends no
-     * fallback configuration of its own and accepts a response describing an SMS-delivered message.
+     * Twilio decides RCS versus SMS server side, so the contract this pins is that the task sends no fallback
+     * configuration of its own and accepts a response describing an SMS-delivered message.
      */
     @Test
-    void requestsNoFallbackConfigurationAndAcceptsSmsResponse(WireMockRuntimeInfo wireMock) throws Exception {
-        stubMessagesApi(201, """
-            {
-              "sid": "SMfallback000000000",
-              "status": "queued",
-              "num_segments": "1",
-              "messaging_service_sid": "MG00000000000000000000000000000000"
-            }
+    void requestsNoFallbackConfigurationAndAcceptsSmsResponse() throws Exception {
+        var http = transport(201, """
+            {"sid":"SMfallback000000000","status":"queued","num_segments":"1"}
             """);
 
-        SendMessage task = task(wireMock)
-            .body(Property.ofValue("Delivered either way."))
-            .build();
-
-        SendMessage.Output output = task.run(runContextFactory.of(Map.of()));
+        var output = on(http, task().body(Property.ofValue("Delivered either way.")).build())
+            .run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("SMfallback000000000"));
         assertThat(output.getStatus(), is("queued"));
 
-        verify(
-            postRequestedFor(urlPathMatching(MESSAGES_PATH))
-                .withRequestBody(notMatching(".*(Fallback|SmsFallback|Channel|ContentRetention).*"))
+        assertThat(
+            sentParams(http).keySet(),
+            everyItem(not(matchesRegex(".*(Fallback|SmsFallback|Channel|ContentRetention).*")))
         );
     }
 
     @Test
-    void failsOnNon201(WireMockRuntimeInfo wireMock) {
-        stubMessagesApi(400, """
+    void failsOnNon201() {
+        var task = on(transport(400, """
             {"code":21211,"message":"The 'To' number is not a valid phone number.","more_info":"https://www.twilio.com/docs/errors/21211","status":400}
-            """);
-
-        SendMessage task = task(wireMock)
-            .to(Property.ofValue("invalid"))
-            .body(Property.ofValue("test"))
-            .build();
+            """), task().to(Property.ofValue("invalid")).body(Property.ofValue("test")).build());
 
         var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("not a valid phone number"));
@@ -130,122 +138,74 @@ class SendMessageTest {
     }
 
     @Test
-    void failsOnEmptyResponseBody(WireMockRuntimeInfo wireMock) {
-        stubMessagesApi(201, "");
-
-        SendMessage task = task(wireMock)
-            .body(Property.ofValue("test"))
-            .build();
+    void failsOnEmptyResponseBody() {
+        var task = on(transport(201, ""), task().body(Property.ofValue("test")).build());
 
         var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("empty body"));
     }
 
     @Test
-    void failsOnUnparseableResponseBody(WireMockRuntimeInfo wireMock) {
-        stubMessagesApi(201, "not json");
-
-        SendMessage task = task(wireMock)
-            .body(Property.ofValue("test"))
-            .build();
+    void failsOnUnparseableResponseBody() {
+        var task = on(transport(201, "not json"), task().body(Property.ofValue("test")).build());
 
         var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("unparseable"));
     }
 
     @Test
-    void failsOnInvalidAccountSid(WireMockRuntimeInfo wireMock) {
-        SendMessage task = task(wireMock)
-            .accountSID(Property.ofValue("not-an-account-sid"))
-            .body(Property.ofValue("test"))
-            .build();
+    void failsOnInvalidAccountSid() {
+        var task = on(
+            transport(201, "{}"),
+            task().accountSID(Property.ofValue("not-an-account-sid")).body(Property.ofValue("test")).build()
+        );
 
         assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
     }
 
     @Test
-    void failsWithoutBodyOrContentSid(WireMockRuntimeInfo wireMock) {
-        SendMessage task = task(wireMock).build();
+    void failsWithoutBodyOrContentSid() {
+        var task = on(transport(201, "{}"), task().build());
 
         var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("either body or contentSid"));
     }
 
     @Test
-    void failsWithoutSender(WireMockRuntimeInfo wireMock) {
-        SendMessage task = TestSendMessage.builder()
-            .base(wireMock.getHttpBaseUrl())
+    void failsWithoutSender() {
+        var task = on(transport(201, "{}"), SendMessage.builder()
             .accountSID(Property.ofValue(ACCOUNT_SID))
             .authToken(Property.ofValue("test_auth_token"))
             .to(Property.ofValue("+15555550100"))
             .body(Property.ofValue("test"))
-            .build();
+            .build());
 
         var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("either from or messagingServiceSid"));
     }
 
     @Test
-    void failsWhenBothSendersSet(WireMockRuntimeInfo wireMock) {
-        SendMessage task = task(wireMock)
-            .from(Property.ofValue("+15005550006"))
-            .body(Property.ofValue("test"))
-            .build();
+    void failsWhenBothSendersSet() {
+        var task = on(
+            transport(201, "{}"),
+            task().from(Property.ofValue("+15005550006")).body(Property.ofValue("test")).build()
+        );
 
         var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("mutually exclusive"));
     }
 
     @Test
-    void failsWhenMessagingServiceSidPassedAsFrom(WireMockRuntimeInfo wireMock) {
-        SendMessage task = TestSendMessage.builder()
-            .base(wireMock.getHttpBaseUrl())
+    void failsWhenMessagingServiceSidPassedAsFrom() {
+        var task = on(transport(201, "{}"), SendMessage.builder()
             .accountSID(Property.ofValue(ACCOUNT_SID))
             .authToken(Property.ofValue("test_auth_token"))
             .from(Property.ofValue(MESSAGING_SERVICE_SID))
             .to(Property.ofValue("+15555550100"))
             .body(Property.ofValue("test"))
-            .build();
+            .build());
 
         var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("messagingServiceSid instead"));
-    }
-
-    private static TestSendMessage.TestSendMessageBuilder<?, ?> task(WireMockRuntimeInfo wireMock) {
-        return TestSendMessage.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue(ACCOUNT_SID))
-            .authToken(Property.ofValue("test_auth_token"))
-            .messagingServiceSid(Property.ofValue(MESSAGING_SERVICE_SID))
-            .to(Property.ofValue("+15555550100"));
-    }
-
-    private static void stubMessagesApi(int status, String body) {
-        stubFor(
-            post(urlPathMatching(MESSAGES_PATH))
-                .willReturn(
-                    aResponse()
-                        .withStatus(status)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(body)
-                )
-        );
-    }
-
-    @SuperBuilder
-    static class TestSendMessage extends SendMessage {
-        private final String base;
-
-        TestSendMessage(String base) {
-            this.base = base;
-        }
-
-        @Override
-        protected com.twilio.http.TwilioRestClient restClient(String accountSid, String authToken) {
-            return new com.twilio.http.TwilioRestClient.Builder(accountSid, authToken)
-                .accountSid(accountSid)
-                .httpClient(new io.kestra.plugin.twilio.notify.RebasingHttpClient(base))
-                .build();
-        }
     }
 }

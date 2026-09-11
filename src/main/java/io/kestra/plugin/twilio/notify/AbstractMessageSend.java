@@ -179,8 +179,8 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
     /**
      * the existing test seam working and lets a Twilio-compatible proxy be used.
      */
-    /** Overridable so tests can point the SDK at a stub, it has no base URL setting of its own. */
-    protected TwilioRestClient restClient(String accountSid, String authToken) {
+    /** Public so tests can stub it, the SDK has no base URL setting of its own. */
+    public TwilioRestClient restClient(String accountSid, String authToken) {
         return new TwilioRestClient.Builder(accountSid, authToken)
             .accountSid(accountSid)
             .build();
