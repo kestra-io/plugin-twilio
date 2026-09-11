@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import com.twilio.exception.ApiException;
+import com.twilio.exception.TwilioException;
 import com.twilio.http.NetworkHttpClient;
 import com.twilio.http.TwilioRestClient;
 import com.twilio.rest.api.v2010.account.Message;
@@ -129,11 +130,15 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
             }
 
             throw new TwilioApiException(
-                "Twilio Messages API returned HTTP " + e.getStatusCode() + ": " + e.getMessage()
+                "Twilio Messages API returned HTTP " + e.getStatusCode()
+                    + (e.getCode() == null ? "" : " (code " + e.getCode() + ")") + ": " + e.getMessage()
                     + (e.getMoreInfo() == null ? "" : " " + e.getMoreInfo())
                     + ". Check the request parameters (e.g. 'to'/'from' format) and Twilio account configuration.",
                 e
             );
+        } catch (TwilioException e) {
+            // ApiConnectionException is a sibling of ApiException, not a subclass, so it would escape unwrapped
+            throw new TwilioApiException("Twilio Messages API call failed: " + e.getMessage(), e);
         }
 
         runContext.logger().info("Message sent, sid={} status={}", message.getSid(), message.getStatus());
@@ -179,25 +184,35 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
      * the existing test seam working and lets a Twilio-compatible proxy be used.
      */
     private TwilioRestClient restClient(String accountSid, String authToken) {
-        var builder = new TwilioRestClient.Builder(accountSid, authToken).accountSid(accountSid);
-
-        if (!DEFAULT_BASE_URL.equals(baseUrl())) {
-            builder.httpClient(new RebasingHttpClient(baseUrl()));
-        }
-
-        return builder.build();
+        return new TwilioRestClient.Builder(accountSid, authToken)
+            .accountSid(accountSid)
+            .httpClient(new SingleAttemptHttpClient(baseUrl()))
+            .build();
     }
 
-    private static final class RebasingHttpClient extends com.twilio.http.HttpClient {
+    /**
+     * Sending a message is not idempotent and Twilio has no idempotency key here, so the SDK's built in retry
+     * (3 attempts on any 5xx) could deliver the same message twice. This sends exactly once, as the plugin always
+     * did. It also applies `baseUrl()` by rewriting the request, since the SDK has no base URL setting.
+     */
+    private static final class SingleAttemptHttpClient extends NetworkHttpClient {
         private final String baseUrl;
-        private final com.twilio.http.HttpClient delegate = new NetworkHttpClient();
 
-        private RebasingHttpClient(String baseUrl) {
+        private SingleAttemptHttpClient(String baseUrl) {
             this.baseUrl = baseUrl;
         }
 
         @Override
+        public com.twilio.http.Response reliableRequest(com.twilio.http.Request request) {
+            return this.makeRequest(request);
+        }
+
+        @Override
         public com.twilio.http.Response makeRequest(com.twilio.http.Request original) {
+            if (DEFAULT_BASE_URL.equals(baseUrl)) {
+                return super.makeRequest(original);
+            }
+
             var rebased = new com.twilio.http.Request(
                 original.getMethod(),
                 original.getUrl().replace(DEFAULT_BASE_URL, baseUrl)
@@ -208,7 +223,7 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
             original.getHeaderParams().forEach((name, values) -> values.forEach(value -> rebased.addHeaderParam(name, value)));
             rebased.setAuth(original.getUsername(), original.getPassword());
 
-            return delegate.makeRequest(rebased);
+            return super.makeRequest(rebased);
         }
     }
 
