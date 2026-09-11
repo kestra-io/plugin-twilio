@@ -32,19 +32,21 @@ class SendTest {
     void sendMms(WireMockRuntimeInfo wireMock) throws Exception {
         stubFor(
             post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(aResponse()
-                    .withStatus(201)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody("""
-                        {
-                          "sid": "MM1234567890abcdef",
-                          "status": "queued",
-                          "from": "+15005550006",
-                          "to": "+15555550100",
-                          "body": "Here is your report.",
-                          "num_media": "1"
-                        }
-                        """))
+                .willReturn(
+                    aResponse()
+                        .withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                            {
+                              "sid": "MM1234567890abcdef",
+                              "status": "queued",
+                              "from": "+15005550006",
+                              "to": "+15555550100",
+                              "body": "Here is your report.",
+                              "num_media": "1"
+                            }
+                            """)
+                )
         );
 
         RunContext runContext = runContextFactory.of(Map.of());
@@ -65,28 +67,32 @@ class SendTest {
         assertThat(output.getStatus(), is("queued"));
 
         // single encoded value, not a bracketed list
-        verify(postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-            .withRequestBody(containing("From="))
-            .withRequestBody(containing("To="))
-            .withRequestBody(containing("Body="))
-            .withRequestBody(containing("MediaUrl=https%3A%2F%2Fexample.com%2Freport.png"))
-            .withRequestBody(notMatching(".*MediaUrl=%5B.*")));
+        verify(
+            postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
+                .withRequestBody(containing("From="))
+                .withRequestBody(containing("To="))
+                .withRequestBody(containing("Body="))
+                .withRequestBody(containing("MediaUrl=https%3A%2F%2Fexample.com%2Freport.png"))
+                .withRequestBody(notMatching(".*MediaUrl=%5B.*"))
+        );
     }
 
     @Test
     void sendMmsMultipleMediaUrls(WireMockRuntimeInfo wireMock) throws Exception {
         stubFor(
             post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(aResponse()
-                    .withStatus(201)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody("""
-                        {
-                          "sid": "MM_multi_media",
-                          "status": "queued",
-                          "num_media": "2"
-                        }
-                        """))
+                .willReturn(
+                    aResponse()
+                        .withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                            {
+                              "sid": "MM_multi_media",
+                              "status": "queued",
+                              "num_media": "2"
+                            }
+                            """)
+                )
         );
 
         RunContext runContext = runContextFactory.of(Map.of());
@@ -98,10 +104,14 @@ class SendTest {
             .from(Property.ofValue("+15005550006"))
             .to(Property.ofValue("+15555550100"))
             .body(Property.ofValue("Two attachments."))
-            .mediaUrls(Property.ofValue(List.of(
-                "https://example.com/image1.png",
-                "https://example.com/image2.png"
-            )))
+            .mediaUrls(
+                Property.ofValue(
+                    List.of(
+                        "https://example.com/image1.png",
+                        "https://example.com/image2.png"
+                    )
+                )
+            )
             .build();
 
         Send.Output output = task.run(runContext);
@@ -110,9 +120,11 @@ class SendTest {
         assertThat(output.getStatus(), is("queued"));
 
         // each URL is its own repeated MediaUrl param
-        verify(postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-            .withRequestBody(containing("MediaUrl=https%3A%2F%2Fexample.com%2Fimage1.png"))
-            .withRequestBody(containing("MediaUrl=https%3A%2F%2Fexample.com%2Fimage2.png")));
+        verify(
+            postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
+                .withRequestBody(containing("MediaUrl=https%3A%2F%2Fexample.com%2Fimage1.png"))
+                .withRequestBody(containing("MediaUrl=https%3A%2F%2Fexample.com%2Fimage2.png"))
+        );
     }
 
     @Test
@@ -135,12 +147,14 @@ class SendTest {
     void failsOnNon201(WireMockRuntimeInfo wireMock) throws Exception {
         stubFor(
             post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(aResponse()
-                    .withStatus(400)
-                    .withHeader("Content-Type", "application/json")
-                    .withBody("""
-                        {"code":21610,"message":"Attempt to send to unsubscribed recipient.","status":400}
-                        """))
+                .willReturn(
+                    aResponse()
+                        .withStatus(400)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                            {"code":21610,"message":"Attempt to send to unsubscribed recipient.","status":400}
+                            """)
+                )
         );
 
         RunContext runContext = runContextFactory.of(Map.of());
@@ -167,8 +181,8 @@ class SendTest {
         }
 
         @Override
-        protected String baseUrl() {
-            return base;
+        protected com.twilio.http.HttpClient httpClient() {
+            return new io.kestra.plugin.twilio.notify.RebasingHttpClient(base);
         }
     }
 }

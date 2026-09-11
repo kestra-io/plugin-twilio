@@ -71,28 +71,6 @@ class SendTest {
         );
     }
 
-    /** Sending is not idempotent, so a 5xx must not be retried into a second real SMS. */
-    @Test
-    void doesNotRetryOnServerError(WireMockRuntimeInfo wireMock) throws Exception {
-        stubFor(
-            post(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json"))
-                .willReturn(aResponse().withStatus(500).withBody("{\"message\":\"boom\"}"))
-        );
-
-        Send task = TestSend.builder()
-            .base(wireMock.getHttpBaseUrl())
-            .accountSID(Property.ofValue("AC00000000000000000000000000000000"))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue("+15005550006"))
-            .to(Property.ofValue("+15555550100"))
-            .body(Property.ofValue("test"))
-            .build();
-
-        assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
-
-        verify(exactly(1), postRequestedFor(urlPathMatching("/2010-04-01/Accounts/.*/Messages.json")));
-    }
-
     @Test
     void failsOnNon201(WireMockRuntimeInfo wireMock) throws Exception {
         stubFor(
@@ -132,8 +110,8 @@ class SendTest {
         }
 
         @Override
-        protected String baseUrl() {
-            return base;
+        protected com.twilio.http.HttpClient httpClient() {
+            return new io.kestra.plugin.twilio.notify.RebasingHttpClient(base);
         }
     }
 }

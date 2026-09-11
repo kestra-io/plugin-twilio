@@ -33,7 +33,6 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public abstract class AbstractMessageSend extends AbstractTwilioConnection implements RunnableTask<AbstractMessageSend.Output> {
 
-    private static final String DEFAULT_BASE_URL = "https://api.twilio.com";
     private static final Pattern ACCOUNT_SID_PATTERN = Pattern.compile("AC[0-9a-fA-F]{32}");
     private static final Pattern MESSAGING_SERVICE_SID_PATTERN = Pattern.compile("MG[0-9a-fA-F]{32}");
 
@@ -83,11 +82,6 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
     @PluginProperty(group = "main")
     private Property<String> body;
 
-    // Twilio Messages API base URL. Not a flow property; overridden only by tests via a subclass.
-    protected String baseUrl() {
-        return DEFAULT_BASE_URL;
-    }
-
     // False for channels that can carry content without a text body, e.g. an RCS content template.
     protected boolean requiresBody() {
         return true;
@@ -123,22 +117,26 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
             // a null status means the SDK never got a usable response, so say that rather than leak a parser error
             if (e.getStatusCode() == null) {
                 throw new TwilioApiException(
-                    "Twilio Messages API returned " + (isEmptyResponse(e) ? "an empty body" : "an unparseable body")
-                        + ": " + e.getMessage(),
+                    "Twilio Messages API returned %s: %s".formatted(
+                        isEmptyResponse(e) ? "an empty body" : "an unparseable body",
+                        e.getMessage()
+                    ),
                     e
                 );
             }
 
             throw new TwilioApiException(
-                "Twilio Messages API returned HTTP " + e.getStatusCode()
-                    + (e.getCode() == null ? "" : " (code " + e.getCode() + ")") + ": " + e.getMessage()
-                    + (e.getMoreInfo() == null ? "" : " " + e.getMoreInfo())
-                    + ". Check the request parameters (e.g. 'to'/'from' format) and Twilio account configuration.",
+                "Twilio Messages API returned HTTP %s%s: %s%s. Check the request parameters (e.g. 'to'/'from' format) and Twilio account configuration.".formatted(
+                    e.getStatusCode(),
+                    e.getCode() == null ? "" : " (code %s)".formatted(e.getCode()),
+                    e.getMessage(),
+                    e.getMoreInfo() == null ? "" : " %s".formatted(e.getMoreInfo())
+                ),
                 e
             );
         } catch (TwilioException e) {
             // ApiConnectionException is a sibling of ApiException, not a subclass, so it would escape unwrapped
-            throw new TwilioApiException("Twilio Messages API call failed: " + e.getMessage(), e);
+            throw new TwilioApiException("Twilio Messages API call failed: %s".formatted(e.getMessage()), e);
         }
 
         runContext.logger().info("Message sent, sid={} status={}", message.getSid(), message.getStatus());
@@ -180,51 +178,18 @@ public abstract class AbstractMessageSend extends AbstractTwilioConnection imple
     }
 
     /**
-     * The SDK has no base URL setting, so a non-default `baseUrl()` is applied by rewriting each request. That keeps
      * the existing test seam working and lets a Twilio-compatible proxy be used.
      */
     private TwilioRestClient restClient(String accountSid, String authToken) {
         return new TwilioRestClient.Builder(accountSid, authToken)
             .accountSid(accountSid)
-            .httpClient(new SingleAttemptHttpClient(baseUrl()))
+            .httpClient(this.httpClient())
             .build();
     }
 
-    /**
-     * Sending a message is not idempotent and Twilio has no idempotency key here, so the SDK's built in retry
-     * (3 attempts on any 5xx) could deliver the same message twice. This sends exactly once, as the plugin always
-     * did. It also applies `baseUrl()` by rewriting the request, since the SDK has no base URL setting.
-     */
-    private static final class SingleAttemptHttpClient extends NetworkHttpClient {
-        private final String baseUrl;
-
-        private SingleAttemptHttpClient(String baseUrl) {
-            this.baseUrl = baseUrl;
-        }
-
-        @Override
-        public com.twilio.http.Response reliableRequest(com.twilio.http.Request request) {
-            return this.makeRequest(request);
-        }
-
-        @Override
-        public com.twilio.http.Response makeRequest(com.twilio.http.Request original) {
-            if (DEFAULT_BASE_URL.equals(baseUrl)) {
-                return super.makeRequest(original);
-            }
-
-            var rebased = new com.twilio.http.Request(
-                original.getMethod(),
-                original.getUrl().replace(DEFAULT_BASE_URL, baseUrl)
-            );
-
-            original.getPostParams().forEach((name, values) -> values.forEach(value -> rebased.addPostParam(name, value)));
-            original.getQueryParams().forEach((name, values) -> values.forEach(value -> rebased.addQueryParam(name, value)));
-            original.getHeaderParams().forEach((name, values) -> values.forEach(value -> rebased.addHeaderParam(name, value)));
-            rebased.setAuth(original.getUsername(), original.getPassword());
-
-            return super.makeRequest(rebased);
-        }
+    /** Overridable so tests can point the SDK at a stub, the SDK itself has no base URL setting. */
+    protected com.twilio.http.HttpClient httpClient() {
+        return new NetworkHttpClient();
     }
 
     private Optional<String> renderedBody(RunContext runContext) throws Exception {

@@ -241,8 +241,8 @@ class SendMessageTest {
         }
 
         @Override
-        protected String baseUrl() {
-            return base;
+        protected com.twilio.http.HttpClient httpClient() {
+            return new io.kestra.plugin.twilio.notify.RebasingHttpClient(base);
         }
     }
 }
