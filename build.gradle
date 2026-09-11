@@ -52,6 +52,9 @@ dependencies {
     compileOnly group: "io.kestra", name: "core", version: kestraVersion
     compileOnly group: "io.kestra", name: "script", version: kestraVersion
 
+    // Twilio Messaging API
+    implementation group: "com.twilio.sdk", name: "twilio", version: "13.0.1"
+
     // SendGrid
     api ('com.sendgrid:sendgrid-java:4.10.3') {
         exclude group: 'com.fasterxml.jackson.core'
