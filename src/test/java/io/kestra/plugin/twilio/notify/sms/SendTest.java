@@ -77,9 +77,11 @@ class SendTest {
 
     @Test
     void failsOnNon201() {
-        var task = taskReturning(clientReturning(
-            "{\"code\":21211,\"message\":\"The 'To' number is not a valid phone number.\",\"status\":400}", 400
-        ));
+        var task = taskReturning(
+            clientReturning(
+                "{\"code\":21211,\"message\":\"The 'To' number is not a valid phone number.\",\"status\":400}", 400
+            )
+        );
 
         var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("not a valid phone number"));

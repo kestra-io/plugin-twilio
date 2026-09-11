@@ -173,12 +173,14 @@ class SendMessageTest {
 
     @Test
     void failsWithoutSender() {
-        var task = on(transport(201, "{}"), SendMessage.builder()
-            .accountSID(Property.ofValue(ACCOUNT_SID))
-            .authToken(Property.ofValue("test_auth_token"))
-            .to(Property.ofValue("+15555550100"))
-            .body(Property.ofValue("test"))
-            .build());
+        var task = on(
+            transport(201, "{}"), SendMessage.builder()
+                .accountSID(Property.ofValue(ACCOUNT_SID))
+                .authToken(Property.ofValue("test_auth_token"))
+                .to(Property.ofValue("+15555550100"))
+                .body(Property.ofValue("test"))
+                .build()
+        );
 
         var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("either from or messagingServiceSid"));
@@ -197,13 +199,15 @@ class SendMessageTest {
 
     @Test
     void failsWhenMessagingServiceSidPassedAsFrom() {
-        var task = on(transport(201, "{}"), SendMessage.builder()
-            .accountSID(Property.ofValue(ACCOUNT_SID))
-            .authToken(Property.ofValue("test_auth_token"))
-            .from(Property.ofValue(MESSAGING_SERVICE_SID))
-            .to(Property.ofValue("+15555550100"))
-            .body(Property.ofValue("test"))
-            .build());
+        var task = on(
+            transport(201, "{}"), SendMessage.builder()
+                .accountSID(Property.ofValue(ACCOUNT_SID))
+                .authToken(Property.ofValue("test_auth_token"))
+                .from(Property.ofValue(MESSAGING_SERVICE_SID))
+                .to(Property.ofValue("+15555550100"))
+                .body(Property.ofValue("test"))
+                .build()
+        );
 
         var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("messagingServiceSid instead"));
