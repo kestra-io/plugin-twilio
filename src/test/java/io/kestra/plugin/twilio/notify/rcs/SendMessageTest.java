@@ -1,15 +1,8 @@
 package io.kestra.plugin.twilio.notify.rcs;
 
-import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-
-import com.twilio.http.HttpClient;
-import com.twilio.http.Request;
-import com.twilio.http.Response;
-import com.twilio.http.TwilioRestClient;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
@@ -17,55 +10,25 @@ import io.kestra.core.runners.RunContextFactory;
 
 import jakarta.inject.Inject;
 
+import static io.kestra.plugin.twilio.notify.TwilioStub.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
 
 @KestraTest
 class SendMessageTest {
-    private static final String ACCOUNT_SID = "AC00000000000000000000000000000000";
     private static final String MESSAGING_SERVICE_SID = "MG00000000000000000000000000000000";
     private static final String CONTENT_SID = "HX00000000000000000000000000000000";
 
     @Inject
     private RunContextFactory runContextFactory;
 
-    private static HttpClient respondsWith(int status, String body) {
-        var http = mock(HttpClient.class);
-        when(http.reliableRequest(any())).thenReturn(new Response(body, status));
-
-        return http;
-    }
-
-    /** A real client with only the transport stubbed, so the SDK still builds and parses everything itself. */
-    private static SendMessage sendVia(HttpClient http, SendMessage task) {
-        var client = new TwilioRestClient.Builder(ACCOUNT_SID, "test_auth_token")
-            .accountSid(ACCOUNT_SID)
-            .httpClient(http)
-            .build();
-
-        SendMessage spied = spy(task);
-        doReturn(client).when(spied).restClient(anyString(), anyString());
-
-        return spied;
-    }
-
     private static SendMessage.SendMessageBuilder<?, ?> task() {
         return SendMessage.builder()
             .accountSID(Property.ofValue(ACCOUNT_SID))
-            .authToken(Property.ofValue("test_auth_token"))
+            .authToken(Property.ofValue(AUTH_TOKEN))
             .messagingServiceSid(Property.ofValue(MESSAGING_SERVICE_SID))
             .to(Property.ofValue("+15555550100"));
-    }
-
-    private static Map<String, List<String>> sentParams(HttpClient http) {
-        var sent = ArgumentCaptor.forClass(Request.class);
-        verify(http).reliableRequest(sent.capture());
-
-        return sent.getValue().getPostParams();
     }
 
     @Test
@@ -74,7 +37,7 @@ class SendMessageTest {
             {"sid":"SM1234567890abcdef","status":"queued"}
             """);
 
-        var output = sendVia(http, task().body(Property.ofValue("Hello from Kestra.")).build())
+        var output = sending(task().body(Property.ofValue("Hello from Kestra.")).build(), http)
             .run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("SM1234567890abcdef"));
@@ -93,7 +56,7 @@ class SendMessageTest {
             {"sid":"SMcontent0000000000","status":"accepted"}
             """);
 
-        var output = sendVia(http, task().contentSid(Property.ofValue(CONTENT_SID)).build())
+        var output = sending(task().contentSid(Property.ofValue(CONTENT_SID)).build(), http)
             .run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("SMcontent0000000000"));
@@ -115,12 +78,11 @@ class SendMessageTest {
             {"sid":"SMfallback000000000","status":"queued","num_segments":"1"}
             """);
 
-        var output = sendVia(http, task().body(Property.ofValue("Delivered either way.")).build())
+        var output = sending(task().body(Property.ofValue("Delivered either way.")).build(), http)
             .run(runContextFactory.of(Map.of()));
 
         assertThat(output.getSid(), is("SMfallback000000000"));
         assertThat(output.getStatus(), is("queued"));
-
         assertThat(
             sentParams(http).keySet(),
             everyItem(not(matchesRegex(".*(Fallback|SmsFallback|Channel|ContentRetention).*")))
@@ -129,9 +91,12 @@ class SendMessageTest {
 
     @Test
     void failsOnNon201() {
-        var task = sendVia(respondsWith(400, """
-            {"code":21211,"message":"The 'To' number is not a valid phone number.","more_info":"https://www.twilio.com/docs/errors/21211","status":400}
-            """), task().to(Property.ofValue("invalid")).body(Property.ofValue("test")).build());
+        var task = sending(
+            task().to(Property.ofValue("invalid")).body(Property.ofValue("test")).build(),
+            respondsWith(400, """
+                {"code":21211,"message":"The 'To' number is not a valid phone number.","more_info":"https://www.twilio.com/docs/errors/21211","status":400}
+                """)
+        );
 
         var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("not a valid phone number"));
@@ -141,7 +106,7 @@ class SendMessageTest {
 
     @Test
     void failsOnEmptyResponseBody() {
-        var task = sendVia(respondsWith(201, ""), task().body(Property.ofValue("test")).build());
+        var task = sending(task().body(Property.ofValue("test")).build(), respondsWith(201, ""));
 
         var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("empty body"));
@@ -149,7 +114,7 @@ class SendMessageTest {
 
     @Test
     void failsOnUnparseableResponseBody() {
-        var task = sendVia(respondsWith(201, "not json"), task().body(Property.ofValue("test")).build());
+        var task = sending(task().body(Property.ofValue("test")).build(), respondsWith(201, "not json"));
 
         var exception = assertThrows(RuntimeException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("unparseable"));
@@ -157,9 +122,9 @@ class SendMessageTest {
 
     @Test
     void failsOnInvalidAccountSid() {
-        var task = sendVia(
-            respondsWith(201, "{}"),
-            task().accountSID(Property.ofValue("not-an-account-sid")).body(Property.ofValue("test")).build()
+        var task = sending(
+            task().accountSID(Property.ofValue("not-an-account-sid")).body(Property.ofValue("test")).build(),
+            respondsWith(201, "{}")
         );
 
         assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
@@ -167,7 +132,7 @@ class SendMessageTest {
 
     @Test
     void failsWithoutBodyOrContentSid() {
-        var task = sendVia(respondsWith(201, "{}"), task().build());
+        var task = sending(task().build(), respondsWith(201, "{}"));
 
         var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
         assertThat(exception.getMessage(), containsString("either body or contentSid"));
@@ -175,13 +140,14 @@ class SendMessageTest {
 
     @Test
     void failsWithoutSender() {
-        var task = sendVia(
-            respondsWith(201, "{}"), SendMessage.builder()
+        var task = sending(
+            SendMessage.builder()
                 .accountSID(Property.ofValue(ACCOUNT_SID))
-                .authToken(Property.ofValue("test_auth_token"))
+                .authToken(Property.ofValue(AUTH_TOKEN))
                 .to(Property.ofValue("+15555550100"))
                 .body(Property.ofValue("test"))
-                .build()
+                .build(),
+            respondsWith(201, "{}")
         );
 
         var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
@@ -190,9 +156,9 @@ class SendMessageTest {
 
     @Test
     void failsWhenBothSendersSet() {
-        var task = sendVia(
-            respondsWith(201, "{}"),
-            task().from(Property.ofValue("+15005550006")).body(Property.ofValue("test")).build()
+        var task = sending(
+            task().from(Property.ofValue("+15005550006")).body(Property.ofValue("test")).build(),
+            respondsWith(201, "{}")
         );
 
         var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
@@ -201,14 +167,15 @@ class SendMessageTest {
 
     @Test
     void failsWhenMessagingServiceSidPassedAsFrom() {
-        var task = sendVia(
-            respondsWith(201, "{}"), SendMessage.builder()
+        var task = sending(
+            SendMessage.builder()
                 .accountSID(Property.ofValue(ACCOUNT_SID))
-                .authToken(Property.ofValue("test_auth_token"))
+                .authToken(Property.ofValue(AUTH_TOKEN))
                 .from(Property.ofValue(MESSAGING_SERVICE_SID))
                 .to(Property.ofValue("+15555550100"))
                 .body(Property.ofValue("test"))
-                .build()
+                .build(),
+            respondsWith(201, "{}")
         );
 
         var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of())));
