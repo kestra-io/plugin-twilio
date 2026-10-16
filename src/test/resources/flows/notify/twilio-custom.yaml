@@ -1,0 +1,30 @@
+id: twilio-custom
+namespace: io.kestra.tests
+
+inputs:
+  - id: url
+    type: STRING
+    defaults: "http://localhost:59443"
+
+tasks:
+  - id: twilio
+    type: io.kestra.plugin.twilio.notify.TwilioExecution
+    url: "{{ inputs.url }}/webhook-unit-test"
+    identity: "0000001"
+    accountSID: "0000000"
+    authToken: "sampleToken"
+    executionId: "{{trigger.executionId}}"
+    customMessage: 'Check the "nightly" load'
+    customFields:
+      team: data-eng
+      env: prod
+
+triggers:
+  - id: on_success
+    type: io.kestra.plugin.core.trigger.Flow
+    preconditions:
+      id: flow_trigger
+      flows:
+        - namespace: io.kestra.tests
+          flowId: main-flow-that-succeeds
+          states: [ SUCCESS ]
