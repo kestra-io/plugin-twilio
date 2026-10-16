@@ -51,4 +51,21 @@ public class TwilioExecutionTest extends AbstractTwilioTest {
         assertThat(decodedData, containsString("Failed on task `failed`"));
         assertThat(decodedData, containsString("Final task ID failed"));
     }
+
+    @Test
+    void flowWithCustomMessageAndFields() throws Exception {
+        var execution = runAndCaptureExecution(
+            "main-flow-that-succeeds",
+            "twilio-custom"
+        );
+
+        String receivedData = waitForWebhookData(() -> FakeWebhookController.data, 5000);
+
+        String decodedData = URLDecoder.decode(receivedData, StandardCharsets.UTF_8);
+
+        assertThat(decodedData, containsString(execution.getId()));
+        assertThat(decodedData, containsString("Check the \"nightly\" load"));
+        assertThat(decodedData, containsString("team: data-eng"));
+        assertThat(decodedData, containsString("env: prod"));
+    }
 }

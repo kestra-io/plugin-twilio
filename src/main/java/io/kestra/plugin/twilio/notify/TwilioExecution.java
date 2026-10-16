@@ -4,6 +4,7 @@ import java.util.Map;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.plugins.notifications.ExecutionInterface;
@@ -13,7 +14,6 @@ import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -69,14 +69,14 @@ public class TwilioExecution extends TwilioTemplate implements ExecutionInterfac
 
     @Schema(
         title = "Custom fields",
-        description = "Additional key-value pairs merged into the rendered template context"
+        description = "Key-value pairs appended to the notification body, one `key: value` line each"
     )
     @PluginProperty(group = "advanced")
     private Property<Map<String, Object>> customFields;
 
     @Schema(
         title = "Custom message",
-        description = "Optional message rendered into the template alongside execution details"
+        description = "Optional message appended to the notification body after the execution summary"
     )
     @PluginProperty(group = "advanced")
     private Property<String> customMessage;
