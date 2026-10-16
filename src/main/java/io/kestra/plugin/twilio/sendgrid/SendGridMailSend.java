@@ -70,7 +70,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                       - hello@kestra.io
                     sendgridApiKey: "{{ secret('SENDGRID_API_KEY') }}"
                     subject: "Kestra workflow failed for the flow {{flow.id}} in the namespace {{flow.namespace}}"
-                    htmlTextContent: "Failure alert for flow {{ flow.namespace }}.{{ flow.id }} with ID {{ execution.id }}"
+                    htmlContent: "Failure alert for flow {{ flow.namespace }}.{{ flow.id }} with ID {{ execution.id }}"
                 """
         )
     },
