@@ -39,7 +39,7 @@ tasks.withType(JavaCompile).configureEach {
 
 configurations.all {
     // SEC-0150/SEC-0151: platform BOM pins httpcore5 5.4.1, remove once it ships >= 5.4.3.
-    resolutionStrategy.force "org.apache.httpcomponents.core5:httpcore5:5.4.4", "org.apache.httpcomponents.core5:httpcore5-h2:5.4.4"
+    resolutionStrategy.force "org.apache.httpcomponents.core5:httpcore5:5.5", "org.apache.httpcomponents.core5:httpcore5-h2:5.5"
 }
 
 dependencies {
@@ -57,7 +57,7 @@ dependencies {
     compileOnly group: "io.kestra", name: "script", version: kestraVersion
 
     // Twilio Messaging API
-    implementation group: "com.twilio.sdk", name: "twilio", version: "13.2.0"
+    implementation group: "com.twilio.sdk", name: "twilio", version: "13.2.1"
 
     // SendGrid
     api ('com.sendgrid:sendgrid-java:4.10.3') {
